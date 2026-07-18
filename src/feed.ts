@@ -57,12 +57,20 @@ export function setFeedIntervalHours(state: AppState, hours: number): AppState {
   return { ...state, feedIntervalHours: clamped };
 }
 
-export function lastFeedEndedAt(state: AppState): string | null {
-  return state.feeds[0]?.endedAt ?? null;
+/** Stamp last/next feed schedule only — does not start the timer. */
+export function markScheduleStart(state: AppState): AppState {
+  return {
+    ...state,
+    scheduleStartedAt: new Date().toISOString(),
+  };
+}
+
+export function lastFeedStartedAt(state: AppState): string | null {
+  return state.scheduleStartedAt;
 }
 
 export function nextFeedAt(state: AppState): Date | null {
-  const last = lastFeedEndedAt(state);
+  const last = lastFeedStartedAt(state);
   if (!last) return null;
   return new Date(
     new Date(last).getTime() + state.feedIntervalHours * 60 * 60 * 1000,

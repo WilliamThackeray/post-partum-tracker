@@ -95,16 +95,24 @@ button {
   letter-spacing: -0.02em;
 }
 
+.meta-block {
+  margin-bottom: 1rem;
+}
+
 .meta {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.65rem;
   padding: 0.75rem 0.85rem;
   background: var(--accent-soft);
   border-radius: 12px;
   color: var(--accent-deep);
   font-size: 0.95rem;
+}
+
+.btn-start-feed {
+  width: 100%;
 }
 
 .meta strong {
@@ -168,6 +176,10 @@ button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
+}
+
+.actions-end {
+  grid-template-columns: 1fr;
 }
 
 .btn {

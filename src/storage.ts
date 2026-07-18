@@ -11,6 +11,7 @@ export function defaultState(): AppState {
     lastBreast: null,
     activeFeed: null,
     feeds: [],
+    scheduleStartedAt: null,
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
     medicines: {
       ibuprofen: { lastTakenAt: null },
@@ -80,6 +81,13 @@ function normalize(raw: unknown): AppState {
       .map(parseFeed)
       .filter((f): f is FeedEntry => f !== null)
       .slice(0, MAX_FEEDS);
+  }
+
+  if (isIsoString(data.scheduleStartedAt)) {
+    base.scheduleStartedAt = data.scheduleStartedAt;
+  } else if (base.feeds[0]?.startedAt) {
+    // Migrate older data that only had feed history
+    base.scheduleStartedAt = base.feeds[0].startedAt;
   }
 
   if (typeof data.feedIntervalHours === "number" && Number.isFinite(data.feedIntervalHours)) {

@@ -4,7 +4,8 @@ import {
   elapsedMs,
   formatDuration,
   isFeedOverdue,
-  lastFeedEndedAt,
+  lastFeedStartedAt,
+  markScheduleStart,
   nextFeedAt,
   setFeedIntervalHours,
   setFeedSide,
@@ -101,7 +102,7 @@ function currentTimerLabel(): string {
 }
 
 function renderFeedMeta(): string {
-  const last = lastFeedEndedAt(state);
+  const last = lastFeedStartedAt(state);
   const next = nextFeedAt(state);
   const overdue = isFeedOverdue(state);
   const nextClass = !next ? "" : overdue ? "is-due" : "is-ok";
@@ -112,15 +113,22 @@ function renderFeedMeta(): string {
     : "—";
 
   return `
-    <div class="meta">
-      <div>
-        <span>Last feed</span>
-        <strong>${last ? formatTime(last) : "—"}</strong>
+    <div class="meta-block">
+      <div class="meta">
+        <div>
+          <span>Last feed</span>
+          <strong>${last ? formatTime(last) : "—"}</strong>
+        </div>
+        <div class="${nextClass}" style="text-align:right">
+          <span>Next feed</span>
+          <strong>${nextLabel}</strong>
+        </div>
       </div>
-      <div class="${nextClass}" style="text-align:right">
-        <span>Next feed</span>
-        <strong>${nextLabel}</strong>
-      </div>
+      <button
+        type="button"
+        class="btn btn-start btn-start-feed"
+        data-action="mark-schedule"
+      >Start Feed</button>
     </div>
   `;
 }
@@ -164,7 +172,7 @@ function render(): void {
         <button
           type="button"
           class="btn btn-start"
-          data-action="start-feed"
+          data-action="start-timer"
           ${feeding ? "disabled" : ""}
         >Start</button>
         <button
@@ -186,7 +194,7 @@ function render(): void {
 
     <section class="panel panel-settings" aria-labelledby="settings-heading">
       <h2 id="settings-heading">Feeding interval</h2>
-      <p class="settings-hint">How long between feeds. Next feed is based on the last feed end time.</p>
+      <p class="settings-hint">How long between feeds. Next feed is based on when you press Start Feed.</p>
       <div class="interval-control">
         <button
           type="button"
@@ -246,7 +254,12 @@ app.addEventListener("click", (event) => {
     return;
   }
 
-  if (action === "start-feed") {
+  if (action === "mark-schedule") {
+    persist(markScheduleStart(state));
+    return;
+  }
+
+  if (action === "start-timer") {
     persist(startFeed(state, selectedSide));
     return;
   }

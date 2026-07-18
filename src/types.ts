@@ -23,6 +23,8 @@ export type AppState = {
   lastBreast: BreastSide | null;
   activeFeed: ActiveFeed | null;
   feeds: FeedEntry[];
+  /** When the current feeding cycle started (for last/next schedule). */
+  scheduleStartedAt: string | null;
   feedIntervalHours: number;
   medicines: Record<MedicineKey, MedicineState>;
 };
