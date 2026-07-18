@@ -1,5 +1,15 @@
 import "./styles.css";
-import { endFeed, elapsedMs, formatDuration, setFeedSide, startFeed } from "./feed";
+import {
+  endFeed,
+  elapsedMs,
+  formatDuration,
+  isFeedOverdue,
+  lastFeedEndedAt,
+  nextFeedAt,
+  setFeedIntervalHours,
+  setFeedSide,
+  startFeed,
+} from "./feed";
 import {
   formatDateTime,
   formatTime,
@@ -8,7 +18,12 @@ import {
   nextDueAt,
   takeMedicine,
 } from "./medicine";
-import { loadState, saveState } from "./storage";
+import {
+  MAX_FEED_INTERVAL_HOURS,
+  MIN_FEED_INTERVAL_HOURS,
+  loadState,
+  saveState,
+} from "./storage";
 import type { AppState, BreastSide, MedicineKey } from "./types";
 
 let state: AppState = loadState();
@@ -24,11 +39,6 @@ function persist(next: AppState): void {
   state = next;
   saveState(state);
   render();
-}
-
-function suggestedNextBreast(): BreastSide | null {
-  if (!state.lastBreast) return null;
-  return state.lastBreast === "left" ? "right" : "left";
 }
 
 function renderMedicineCard(key: MedicineKey): string {
@@ -69,7 +79,6 @@ function renderHistory(): string {
   }
 
   const items = state.feeds
-    .slice(0, 8)
     .map((feed) => {
       return `
         <li>
@@ -91,15 +100,36 @@ function currentTimerLabel(): string {
   return formatDuration(elapsedMs(state.activeFeed.startedAt));
 }
 
+function renderFeedMeta(): string {
+  const last = lastFeedEndedAt(state);
+  const next = nextFeedAt(state);
+  const overdue = isFeedOverdue(state);
+  const nextClass = !next ? "" : overdue ? "is-due" : "is-ok";
+  const nextLabel = next
+    ? overdue
+      ? `${formatTime(next.toISOString())} · due now`
+      : formatTime(next.toISOString())
+    : "—";
+
+  return `
+    <div class="meta">
+      <div>
+        <span>Last feed</span>
+        <strong>${last ? formatTime(last) : "—"}</strong>
+      </div>
+      <div class="${nextClass}" style="text-align:right">
+        <span>Next feed</span>
+        <strong>${nextLabel}</strong>
+      </div>
+    </div>
+  `;
+}
+
 function render(): void {
   const feeding = Boolean(state.activeFeed);
-  const lastLabel = state.lastBreast
-    ? state.lastBreast.charAt(0).toUpperCase() + state.lastBreast.slice(1)
-    : "—";
-  const next = suggestedNextBreast();
-  const nextLabel = next
-    ? next.charAt(0).toUpperCase() + next.slice(1)
-    : "—";
+  const interval = state.feedIntervalHours;
+  const intervalLabel =
+    interval === 1 ? "1 hour" : `${Number(interval.toFixed(1))} hours`;
 
   app.innerHTML = `
     <header class="brand">
@@ -109,16 +139,7 @@ function render(): void {
 
     <section class="panel" aria-labelledby="feeding-heading">
       <h2 id="feeding-heading">Feeding</h2>
-      <div class="meta">
-        <div>
-          <span>Last breast</span>
-          <strong>${lastLabel}</strong>
-        </div>
-        <div style="text-align:right">
-          <span>Try next</span>
-          <strong>${nextLabel}</strong>
-        </div>
-      </div>
+      ${renderFeedMeta()}
 
       <div class="side-toggle" role="group" aria-label="Breast side">
         <button
@@ -162,6 +183,28 @@ function render(): void {
       ${renderMedicineCard("ibuprofen")}
       ${renderMedicineCard("tylenol")}
     </section>
+
+    <section class="panel panel-settings" aria-labelledby="settings-heading">
+      <h2 id="settings-heading">Feeding interval</h2>
+      <p class="settings-hint">How long between feeds. Next feed is based on the last feed end time.</p>
+      <div class="interval-control">
+        <button
+          type="button"
+          class="btn-interval"
+          data-action="interval-down"
+          ${interval <= MIN_FEED_INTERVAL_HOURS ? "disabled" : ""}
+          aria-label="Decrease interval"
+        >−</button>
+        <div class="interval-value" aria-live="polite">${intervalLabel}</div>
+        <button
+          type="button"
+          class="btn-interval"
+          data-action="interval-up"
+          ${interval >= MAX_FEED_INTERVAL_HOURS ? "disabled" : ""}
+          aria-label="Increase interval"
+        >+</button>
+      </div>
+    </section>
   `;
 
   syncTicker();
@@ -172,7 +215,9 @@ function syncTicker(): void {
     tickId = window.setInterval(() => {
       const timer = app.querySelector(".timer");
       if (timer && state.activeFeed) {
-        timer.textContent = formatDuration(elapsedMs(state.activeFeed.startedAt));
+        timer.textContent = formatDuration(
+          elapsedMs(state.activeFeed.startedAt),
+        );
       }
     }, 1000);
   } else if (!state.activeFeed && tickId !== null) {
@@ -182,7 +227,9 @@ function syncTicker(): void {
 }
 
 app.addEventListener("click", (event) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-action]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>(
+    "[data-action]",
+  );
   if (!target) return;
 
   const action = target.dataset.action;
@@ -220,6 +267,16 @@ app.addEventListener("click", (event) => {
     const key = target.dataset.med as MedicineKey | undefined;
     if (!key) return;
     persist(takeMedicine(state, key));
+    return;
+  }
+
+  if (action === "interval-down") {
+    persist(setFeedIntervalHours(state, state.feedIntervalHours - 0.5));
+    return;
+  }
+
+  if (action === "interval-up") {
+    persist(setFeedIntervalHours(state, state.feedIntervalHours + 0.5));
   }
 });
 

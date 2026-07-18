@@ -23,5 +23,6 @@ export type AppState = {
   lastBreast: BreastSide | null;
   activeFeed: ActiveFeed | null;
   feeds: FeedEntry[];
+  feedIntervalHours: number;
   medicines: Record<MedicineKey, MedicineState>;
 };

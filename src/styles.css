@@ -115,6 +115,14 @@ button {
   margin-top: 0.15rem;
 }
 
+.meta .is-due strong {
+  color: var(--warn);
+}
+
+.meta .is-ok strong {
+  color: var(--ok);
+}
+
 .side-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -193,6 +201,10 @@ button {
   margin: 1.15rem 0 0;
   padding: 0;
   list-style: none;
+  max-height: 17.5rem; /* ~8 rows */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .history li {
@@ -305,15 +317,62 @@ button {
   transform: scale(0.98);
 }
 
+.panel-settings h2 {
+  margin-bottom: 0.35rem;
+}
+
+.settings-hint {
+  margin: 0 0 1rem;
+  color: var(--ink-muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.interval-control {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.btn-interval {
+  min-height: 52px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.btn-interval:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-interval:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.interval-value {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .side-btn,
-  .btn-med {
+  .btn-med,
+  .btn-interval {
     transition: none;
   }
 
   .btn:active:not(:disabled),
-  .btn-med:active {
+  .btn-med:active,
+  .btn-interval:active:not(:disabled) {
     transform: none;
   }
 }

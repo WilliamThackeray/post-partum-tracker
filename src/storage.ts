@@ -2,12 +2,16 @@ import type { AppState, BreastSide, FeedEntry, MedicineKey } from "./types";
 
 const STORAGE_KEY = "postpartum-tracker";
 export const MAX_FEEDS = 20;
+export const DEFAULT_FEED_INTERVAL_HOURS = 3;
+export const MIN_FEED_INTERVAL_HOURS = 1;
+export const MAX_FEED_INTERVAL_HOURS = 6;
 
 export function defaultState(): AppState {
   return {
     lastBreast: null,
     activeFeed: null,
     feeds: [],
+    feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
     medicines: {
       ibuprofen: { lastTakenAt: null },
       tylenol: { lastTakenAt: null },
@@ -76,6 +80,13 @@ function normalize(raw: unknown): AppState {
       .map(parseFeed)
       .filter((f): f is FeedEntry => f !== null)
       .slice(0, MAX_FEEDS);
+  }
+
+  if (typeof data.feedIntervalHours === "number" && Number.isFinite(data.feedIntervalHours)) {
+    base.feedIntervalHours = Math.min(
+      MAX_FEED_INTERVAL_HOURS,
+      Math.max(MIN_FEED_INTERVAL_HOURS, data.feedIntervalHours),
+    );
   }
 
   if (data.medicines && typeof data.medicines === "object") {

@@ -1,4 +1,8 @@
-import { MAX_FEEDS } from "./storage";
+import {
+  MAX_FEED_INTERVAL_HOURS,
+  MAX_FEEDS,
+  MIN_FEED_INTERVAL_HOURS,
+} from "./storage";
 import type { AppState, BreastSide, FeedEntry } from "./types";
 
 export function setFeedSide(state: AppState, side: BreastSide): AppState {
@@ -43,6 +47,32 @@ export function endFeed(state: AppState): AppState {
     activeFeed: null,
     feeds: [entry, ...state.feeds].slice(0, MAX_FEEDS),
   };
+}
+
+export function setFeedIntervalHours(state: AppState, hours: number): AppState {
+  const clamped = Math.min(
+    MAX_FEED_INTERVAL_HOURS,
+    Math.max(MIN_FEED_INTERVAL_HOURS, hours),
+  );
+  return { ...state, feedIntervalHours: clamped };
+}
+
+export function lastFeedEndedAt(state: AppState): string | null {
+  return state.feeds[0]?.endedAt ?? null;
+}
+
+export function nextFeedAt(state: AppState): Date | null {
+  const last = lastFeedEndedAt(state);
+  if (!last) return null;
+  return new Date(
+    new Date(last).getTime() + state.feedIntervalHours * 60 * 60 * 1000,
+  );
+}
+
+export function isFeedOverdue(state: AppState, now = Date.now()): boolean {
+  const next = nextFeedAt(state);
+  if (!next) return false;
+  return next.getTime() <= now;
 }
 
 export function formatDuration(ms: number): string {
