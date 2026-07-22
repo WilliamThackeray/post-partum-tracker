@@ -5,6 +5,12 @@ import {
 } from "./storage";
 import type { AppState, BreastSide, FeedEntry } from "./types";
 
+function createId(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c?.randomUUID) return c.randomUUID();
+  return `feed-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function setFeedSide(state: AppState, side: BreastSide): AppState {
   if (state.activeFeed) {
     return {
@@ -34,7 +40,7 @@ export function endFeed(state: AppState): AppState {
   const durationMs = Math.max(0, endedAt.getTime() - startedAt.getTime());
 
   const entry: FeedEntry = {
-    id: crypto.randomUUID(),
+    id: createId(),
     side: state.activeFeed.side,
     startedAt: state.activeFeed.startedAt,
     endedAt: endedAt.toISOString(),
