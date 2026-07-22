@@ -1,4 +1,5 @@
 import type { AppState, BreastSide, FeedEntry, MedicineKey } from "./types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "postpartum-tracker";
 export const MAX_FEEDS = 20;
@@ -90,7 +91,10 @@ function normalize(raw: unknown): AppState {
     base.scheduleStartedAt = base.feeds[0].startedAt;
   }
 
-  if (typeof data.feedIntervalHours === "number" && Number.isFinite(data.feedIntervalHours)) {
+  if (
+    typeof data.feedIntervalHours === "number" &&
+    Number.isFinite(data.feedIntervalHours)
+  ) {
     base.feedIntervalHours = Math.min(
       MAX_FEED_INTERVAL_HOURS,
       Math.max(MIN_FEED_INTERVAL_HOURS, data.feedIntervalHours),
@@ -107,9 +111,9 @@ function normalize(raw: unknown): AppState {
   return base;
 }
 
-export function loadState(): AppState {
+export async function loadState(): Promise<AppState> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
     return normalize(JSON.parse(raw));
   } catch {
@@ -117,6 +121,6 @@ export function loadState(): AppState {
   }
 }
 
-export function saveState(state: AppState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export async function saveState(state: AppState): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
