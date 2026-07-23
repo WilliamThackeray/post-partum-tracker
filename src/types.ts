@@ -1,16 +1,30 @@
 export type BreastSide = "left" | "right";
 
-export type ActiveFeed = {
-  side: BreastSide;
-  startedAt: string;
-};
-
-export type FeedEntry = {
-  id: string;
+export type FeedSegment = {
   side: BreastSide;
   startedAt: string;
   endedAt: string;
   durationMs: number;
+};
+
+export type FeedSession = {
+  id: string;
+  startedAt: string;
+  endedAt: string;
+  /** Sum of segment durations. */
+  durationMs: number;
+  segments: FeedSegment[];
+};
+
+export type ActiveSegment = {
+  side: BreastSide;
+  startedAt: string;
+};
+
+export type ActiveSession = {
+  startedAt: string;
+  segments: FeedSegment[];
+  activeSegment: ActiveSegment | null;
 };
 
 export type Medicine = {
@@ -23,8 +37,8 @@ export type Medicine = {
 
 export type AppState = {
   lastBreast: BreastSide | null;
-  activeFeed: ActiveFeed | null;
-  feeds: FeedEntry[];
+  activeSession: ActiveSession | null;
+  feeds: FeedSession[];
   /** When the current feeding cycle started (for last/next schedule). */
   scheduleStartedAt: string | null;
   feedIntervalHours: number;

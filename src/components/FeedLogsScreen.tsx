@@ -1,11 +1,11 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { panelShadow } from "../shadow";
 import { colors, fonts, radius } from "../theme";
-import type { FeedEntry } from "../types";
+import type { FeedSession } from "../types";
 import { FeedLogList } from "./FeedLogList";
 
 type FeedLogsScreenProps = {
-  feeds: FeedEntry[];
+  feeds: FeedSession[];
   onBack: () => void;
 };
 

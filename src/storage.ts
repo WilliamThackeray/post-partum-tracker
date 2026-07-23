@@ -1,4 +1,10 @@
-import type { AppState, BreastSide, FeedEntry } from "./types";
+import type {
+  ActiveSession,
+  AppState,
+  BreastSide,
+  FeedSegment,
+  FeedSession,
+} from "./types";
 import { parseMedicines } from "./medicine";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -11,7 +17,7 @@ export const MAX_FEED_INTERVAL_HOURS = 6;
 export function defaultState(): AppState {
   return {
     lastBreast: null,
-    activeFeed: null,
+    activeSession: null,
     feeds: [],
     scheduleStartedAt: null,
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
@@ -27,25 +33,97 @@ function isIsoString(value: unknown): value is string {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 
-function parseFeed(value: unknown): FeedEntry | null {
+function parseSegment(value: unknown): FeedSegment | null {
   if (!value || typeof value !== "object") return null;
-  const f = value as Record<string, unknown>;
+  const s = value as Record<string, unknown>;
   if (
-    typeof f.id !== "string" ||
-    !isBreastSide(f.side) ||
-    !isIsoString(f.startedAt) ||
-    !isIsoString(f.endedAt) ||
-    typeof f.durationMs !== "number"
+    !isBreastSide(s.side) ||
+    !isIsoString(s.startedAt) ||
+    !isIsoString(s.endedAt) ||
+    typeof s.durationMs !== "number"
   ) {
     return null;
   }
   return {
+    side: s.side,
+    startedAt: s.startedAt,
+    endedAt: s.endedAt,
+    durationMs: s.durationMs,
+  };
+}
+
+function parseFeedSession(value: unknown): FeedSession | null {
+  if (!value || typeof value !== "object") return null;
+  const f = value as Record<string, unknown>;
+
+  // Legacy single-side feed entry → one-segment session
+  if (
+    typeof f.id === "string" &&
+    isBreastSide(f.side) &&
+    isIsoString(f.startedAt) &&
+    isIsoString(f.endedAt) &&
+    typeof f.durationMs === "number" &&
+    !Array.isArray(f.segments)
+  ) {
+    return {
+      id: f.id,
+      startedAt: f.startedAt,
+      endedAt: f.endedAt,
+      durationMs: f.durationMs,
+      segments: [
+        {
+          side: f.side,
+          startedAt: f.startedAt,
+          endedAt: f.endedAt,
+          durationMs: f.durationMs,
+        },
+      ],
+    };
+  }
+
+  if (
+    typeof f.id !== "string" ||
+    !isIsoString(f.startedAt) ||
+    !isIsoString(f.endedAt) ||
+    typeof f.durationMs !== "number" ||
+    !Array.isArray(f.segments)
+  ) {
+    return null;
+  }
+
+  const segments = f.segments
+    .map(parseSegment)
+    .filter((s): s is FeedSegment => s !== null);
+
+  return {
     id: f.id,
-    side: f.side,
     startedAt: f.startedAt,
     endedAt: f.endedAt,
     durationMs: f.durationMs,
+    segments,
   };
+}
+
+function parseActiveSession(value: unknown): ActiveSession | null {
+  if (!value || typeof value !== "object") return null;
+  const s = value as Record<string, unknown>;
+  if (!isIsoString(s.startedAt)) return null;
+
+  const segments = Array.isArray(s.segments)
+    ? s.segments
+        .map(parseSegment)
+        .filter((seg): seg is FeedSegment => seg !== null)
+    : [];
+
+  let activeSegment: ActiveSession["activeSegment"] = null;
+  if (s.activeSegment && typeof s.activeSegment === "object") {
+    const a = s.activeSegment as Record<string, unknown>;
+    if (isBreastSide(a.side) && isIsoString(a.startedAt)) {
+      activeSegment = { side: a.side, startedAt: a.startedAt };
+    }
+  }
+
+  return { startedAt: s.startedAt, segments, activeSegment };
 }
 
 function normalize(raw: unknown): AppState {
@@ -60,25 +138,33 @@ function normalize(raw: unknown): AppState {
     base.lastBreast = null;
   }
 
-  if (data.activeFeed && typeof data.activeFeed === "object") {
+  if (data.activeSession) {
+    base.activeSession = parseActiveSession(data.activeSession);
+  } else if (data.activeFeed && typeof data.activeFeed === "object") {
+    // Migrate legacy activeFeed → activeSession with one open side
     const af = data.activeFeed as Record<string, unknown>;
     if (isBreastSide(af.side) && isIsoString(af.startedAt)) {
-      base.activeFeed = { side: af.side, startedAt: af.startedAt };
+      base.activeSession = {
+        startedAt: af.startedAt,
+        segments: [],
+        activeSegment: { side: af.side, startedAt: af.startedAt },
+      };
     }
   }
 
   if (Array.isArray(data.feeds)) {
     base.feeds = data.feeds
-      .map(parseFeed)
-      .filter((f): f is FeedEntry => f !== null)
+      .map(parseFeedSession)
+      .filter((f): f is FeedSession => f !== null)
       .slice(0, MAX_FEEDS);
   }
 
   if (isIsoString(data.scheduleStartedAt)) {
     base.scheduleStartedAt = data.scheduleStartedAt;
   } else if (base.feeds[0]?.startedAt) {
-    // Migrate older data that only had feed history
     base.scheduleStartedAt = base.feeds[0].startedAt;
+  } else if (base.activeSession?.startedAt) {
+    base.scheduleStartedAt = base.activeSession.startedAt;
   }
 
   if (

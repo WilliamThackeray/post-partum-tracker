@@ -15,26 +15,21 @@ export const FEED_PREVIEW_LIMIT = 5;
 
 type FeedPanelProps = {
   state: AppState;
-  selectedSide: BreastSide;
   timerLabel: string;
-  onSelectSide: (side: BreastSide) => void;
-  onMarkSchedule: () => void;
-  onStartTimer: () => void;
-  onEndTimer: () => void;
+  onToggleSession: () => void;
+  onToggleSide: (side: BreastSide) => void;
   onSeeMoreFeeds: () => void;
 };
 
 export function FeedPanel({
   state,
-  selectedSide,
   timerLabel,
-  onSelectSide,
-  onMarkSchedule,
-  onStartTimer,
-  onEndTimer,
+  onToggleSession,
+  onToggleSide,
   onSeeMoreFeeds,
 }: FeedPanelProps) {
-  const feeding = Boolean(state.activeFeed);
+  const sessionActive = Boolean(state.activeSession);
+  const activeSide = state.activeSession?.activeSegment?.side ?? null;
   const last = lastFeedStartedAt(state);
   const next = nextFeedAt(state);
   const overdue = isFeedOverdue(state);
@@ -75,73 +70,55 @@ export function FeedPanel({
           accessibilityRole="button"
           style={({ pressed }) => [
             styles.btn,
-            styles.btnStart,
+            sessionActive ? styles.btnEnd : styles.btnStart,
             pressed && styles.pressed,
           ]}
-          onPress={onMarkSchedule}
+          onPress={onToggleSession}
         >
-          <Text style={styles.btnText}>Start Feed</Text>
+          <Text style={styles.btnText}>
+            {sessionActive ? "Stop Feed" : "Start Feed"}
+          </Text>
         </Pressable>
       </View>
 
-      <View style={styles.sideToggle}>
+      <Text style={[styles.timer, !activeSide && styles.timerIdle]}>
+        {timerLabel}
+      </Text>
+
+      <View style={styles.actions}>
         {(["left", "right"] as const).map((side) => {
-          const selected = selectedSide === side;
+          const isActive = activeSide === side;
+          const label = isActive
+            ? side === "left"
+              ? "End Left Side"
+              : "End Right Side"
+            : side === "left"
+              ? "Start Left Side"
+              : "Start Right Side";
+
           return (
             <Pressable
               key={side}
-              style={[styles.sideBtn, selected && styles.sideBtnSelected]}
-              onPress={() => onSelectSide(side)}
               accessibilityRole="button"
-              accessibilityState={{ selected }}
+              style={({ pressed }) => [
+                styles.btn,
+                styles.actionBtn,
+                isActive ? styles.btnEnd : styles.btnStart,
+                !sessionActive && styles.btnDisabled,
+                pressed && sessionActive && styles.pressed,
+              ]}
+              onPress={() => onToggleSide(side)}
+              disabled={!sessionActive}
             >
-              <Text
-                style={[
-                  styles.sideBtnText,
-                  selected && styles.sideBtnTextSelected,
-                ]}
-              >
-                {side === "left" ? "Left" : "Right"}
-              </Text>
+              <Text style={styles.sideBtnText}>{label}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      <Text style={[styles.timer, !feeding && styles.timerIdle]}>
-        {timerLabel}
-      </Text>
-
-      <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.btn,
-            styles.btnStart,
-            styles.actionBtn,
-            feeding && styles.btnDisabled,
-            pressed && !feeding && styles.pressed,
-          ]}
-          onPress={onStartTimer}
-          disabled={feeding}
-        >
-          <Text style={styles.btnText}>Start</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.btn,
-            styles.btnEnd,
-            styles.actionBtn,
-            !feeding && styles.btnDisabled,
-            pressed && feeding && styles.pressed,
-          ]}
-          onPress={onEndTimer}
-          disabled={!feeding}
-        >
-          <Text style={styles.btnText}>End</Text>
-        </Pressable>
-      </View>
+      {!sessionActive ? (
+        <Text style={styles.hint}>Start a feed to time each side.</Text>
+      ) : null}
 
       <View style={styles.history}>
         <FeedLogList feeds={previewFeeds} />
@@ -215,40 +192,13 @@ const styles = StyleSheet.create({
   okValue: {
     color: colors.ok,
   },
-  sideToggle: {
-    flexDirection: "row",
-    gap: 9.6,
-    marginBottom: 14.4,
-  },
-  sideBtn: {
-    flex: 1,
-    minHeight: 52,
-    borderRadius: radius.control,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sideBtnSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  sideBtnText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 16.8,
-    color: colors.inkMuted,
-  },
-  sideBtnTextSelected: {
-    color: colors.white,
-  },
   timer: {
     textAlign: "center",
     fontFamily: fonts.display,
     fontSize: 48,
     letterSpacing: -1.5,
     lineHeight: 52,
-    marginVertical: 8,
+    marginBottom: 12,
     color: colors.ink,
     fontVariant: ["tabular-nums"],
   },
@@ -262,6 +212,7 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
+    paddingHorizontal: 8,
   },
   btn: {
     minHeight: 56,
@@ -286,6 +237,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 17.6,
     color: colors.white,
+  },
+  sideBtnText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14.5,
+    color: colors.white,
+    textAlign: "center",
+  },
+  hint: {
+    marginTop: 10,
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    color: colors.inkMuted,
+    textAlign: "center",
   },
   history: {
     marginTop: 18.4,

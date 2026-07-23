@@ -4,49 +4,108 @@ import {
   MAX_FEEDS,
   MIN_FEED_INTERVAL_HOURS,
 } from "./storage";
-import type { AppState, BreastSide, FeedEntry } from "./types";
+import type {
+  ActiveSession,
+  AppState,
+  BreastSide,
+  FeedSegment,
+  FeedSession,
+} from "./types";
 
-export function setFeedSide(state: AppState, side: BreastSide): AppState {
-  if (state.activeFeed) {
-    return {
-      ...state,
-      activeFeed: { ...state.activeFeed, side },
-    };
-  }
-  return state;
-}
+function closeActiveSegment(
+  session: ActiveSession,
+  endedAt = new Date(),
+): ActiveSession {
+  if (!session.activeSegment) return session;
 
-export function startFeed(state: AppState, side: BreastSide): AppState {
-  if (state.activeFeed) return state;
-  return {
-    ...state,
-    activeFeed: {
-      side,
-      startedAt: new Date().toISOString(),
-    },
-  };
-}
-
-export function endFeed(state: AppState): AppState {
-  if (!state.activeFeed) return state;
-
-  const endedAt = new Date();
-  const startedAt = new Date(state.activeFeed.startedAt);
+  const startedAt = new Date(session.activeSegment.startedAt);
   const durationMs = Math.max(0, endedAt.getTime() - startedAt.getTime());
-
-  const entry: FeedEntry = {
-    id: createId("feed"),
-    side: state.activeFeed.side,
-    startedAt: state.activeFeed.startedAt,
+  const segment: FeedSegment = {
+    side: session.activeSegment.side,
+    startedAt: session.activeSegment.startedAt,
     endedAt: endedAt.toISOString(),
     durationMs,
   };
 
   return {
+    ...session,
+    segments: [...session.segments, segment],
+    activeSegment: null,
+  };
+}
+
+function sessionDurationMs(segments: FeedSegment[]): number {
+  return segments.reduce((sum, segment) => sum + segment.durationMs, 0);
+}
+
+/** Begin a feeding session and stamp the next-feed schedule. */
+export function startSession(state: AppState): AppState {
+  if (state.activeSession) return state;
+  const startedAt = new Date().toISOString();
+  return {
     ...state,
-    lastBreast: entry.side,
-    activeFeed: null,
+    scheduleStartedAt: startedAt,
+    activeSession: {
+      startedAt,
+      segments: [],
+      activeSegment: null,
+    },
+  };
+}
+
+/** End the session, finalize any open side, and log the total. */
+export function stopSession(state: AppState): AppState {
+  if (!state.activeSession) return state;
+
+  const endedAt = new Date();
+  const closed = closeActiveSegment(state.activeSession, endedAt);
+  const lastSegment = closed.segments[closed.segments.length - 1];
+  const entry: FeedSession = {
+    id: createId("feed"),
+    startedAt: closed.startedAt,
+    endedAt: endedAt.toISOString(),
+    durationMs: sessionDurationMs(closed.segments),
+    segments: closed.segments,
+  };
+
+  return {
+    ...state,
+    lastBreast: lastSegment?.side ?? state.lastBreast,
+    activeSession: null,
     feeds: [entry, ...state.feeds].slice(0, MAX_FEEDS),
+  };
+}
+
+/** Start timing a side. Ends the other side first if it was running. */
+export function startSide(state: AppState, side: BreastSide): AppState {
+  if (!state.activeSession) return state;
+
+  let session = state.activeSession;
+  if (session.activeSegment?.side === side) return state;
+
+  if (session.activeSegment) {
+    session = closeActiveSegment(session);
+  }
+
+  return {
+    ...state,
+    activeSession: {
+      ...session,
+      activeSegment: {
+        side,
+        startedAt: new Date().toISOString(),
+      },
+    },
+  };
+}
+
+/** Stop timing the active side without ending the session. */
+export function endSide(state: AppState): AppState {
+  if (!state.activeSession?.activeSegment) return state;
+  return {
+    ...state,
+    lastBreast: state.activeSession.activeSegment.side,
+    activeSession: closeActiveSegment(state.activeSession),
   };
 }
 
@@ -56,14 +115,6 @@ export function setFeedIntervalHours(state: AppState, hours: number): AppState {
     Math.max(MIN_FEED_INTERVAL_HOURS, hours),
   );
   return { ...state, feedIntervalHours: clamped };
-}
-
-/** Stamp last/next feed schedule only — does not start the timer. */
-export function markScheduleStart(state: AppState): AppState {
-  return {
-    ...state,
-    scheduleStartedAt: new Date().toISOString(),
-  };
 }
 
 export function lastFeedStartedAt(state: AppState): string | null {
@@ -93,4 +144,17 @@ export function formatDuration(ms: number): string {
 
 export function elapsedMs(startedAt: string, now = Date.now()): number {
   return Math.max(0, now - new Date(startedAt).getTime());
+}
+
+export function sideTotals(session: FeedSession): {
+  leftMs: number;
+  rightMs: number;
+} {
+  let leftMs = 0;
+  let rightMs = 0;
+  for (const segment of session.segments) {
+    if (segment.side === "left") leftMs += segment.durationMs;
+    else rightMs += segment.durationMs;
+  }
+  return { leftMs, rightMs };
 }

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  endFeed,
+  endSide,
   elapsedMs,
   formatDuration,
-  markScheduleStart,
   setFeedIntervalHours,
-  setFeedSide,
-  startFeed,
+  startSession,
+  startSide,
+  stopSession,
 } from "../feed";
 import { addMedicine, parseMedicines, removeMedicine, takeMedicine } from "../medicine";
 import { defaultState, loadState, saveState } from "../storage";
@@ -15,12 +15,9 @@ import type { AppState, BreastSide } from "../types";
 export type UseAppStateResult = {
   ready: boolean;
   state: AppState;
-  selectedSide: BreastSide;
   timerLabel: string;
-  selectSide: (side: BreastSide) => void;
-  markSchedule: () => void;
-  startTimer: () => void;
-  endTimer: () => void;
+  toggleSession: () => void;
+  toggleSide: (side: BreastSide) => void;
   takeMed: (id: string) => void;
   addMed: (name: string, intervalHours: number) => void;
   removeMed: (id: string) => void;
@@ -40,7 +37,6 @@ function coerceState(raw: AppState): AppState {
 export function useAppState(): UseAppStateResult {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<AppState | null>(null);
-  const [selectedSide, setSelectedSide] = useState<BreastSide>("left");
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -49,9 +45,7 @@ export function useAppState(): UseAppStateResult {
       const loaded = coerceState(await loadState());
       if (cancelled) return;
       setState(loaded);
-      setSelectedSide(loaded.activeFeed?.side ?? loaded.lastBreast ?? "left");
       setReady(true);
-      // Re-save so legacy Record medicines get rewritten as an array.
       await saveState(loaded);
     })();
     return () => {
@@ -66,44 +60,31 @@ export function useAppState(): UseAppStateResult {
   }, []);
 
   useEffect(() => {
-    if (!state?.activeFeed) return;
+    if (!state?.activeSession?.activeSegment) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [state?.activeFeed]);
+  }, [state?.activeSession?.activeSegment]);
 
-  const selectSide = useCallback(
+  const toggleSession = useCallback(() => {
+    if (!state) return;
+    if (state.activeSession) {
+      void persist(stopSession(state));
+    } else {
+      void persist(startSession(state));
+    }
+  }, [persist, state]);
+
+  const toggleSide = useCallback(
     (side: BreastSide) => {
-      setSelectedSide(side);
-      if (!state) return;
-      if (state.activeFeed) {
-        void persist(setFeedSide(state, side));
+      if (!state?.activeSession) return;
+      if (state.activeSession.activeSegment?.side === side) {
+        void persist(endSide(state));
+      } else {
+        void persist(startSide(state, side));
       }
     },
     [persist, state],
   );
-
-  const markSchedule = useCallback(() => {
-    if (!state) return;
-    void persist(markScheduleStart(state));
-  }, [persist, state]);
-
-  const startTimer = useCallback(() => {
-    if (!state) return;
-    void persist(startFeed(state, selectedSide));
-  }, [persist, selectedSide, state]);
-
-  const endTimer = useCallback(() => {
-    if (!state) return;
-    const next = endFeed(state);
-    setSelectedSide(
-      next.lastBreast === "left"
-        ? "right"
-        : next.lastBreast === "right"
-          ? "left"
-          : selectedSide,
-    );
-    void persist(next);
-  }, [persist, selectedSide, state]);
 
   const takeMed = useCallback(
     (id: string) => {
@@ -139,20 +120,18 @@ export function useAppState(): UseAppStateResult {
     void persist(setFeedIntervalHours(state, state.feedIntervalHours + 0.5));
   }, [persist, state]);
 
+  const activeStartedAt = state?.activeSession?.activeSegment?.startedAt;
   const timerLabel =
-    state?.activeFeed != null
-      ? formatDuration(elapsedMs(state.activeFeed.startedAt, now))
+    activeStartedAt != null
+      ? formatDuration(elapsedMs(activeStartedAt, now))
       : "00:00";
 
   return {
     ready,
     state: state ?? defaultState(),
-    selectedSide,
     timerLabel,
-    selectSide,
-    markSchedule,
-    startTimer,
-    endTimer,
+    toggleSession,
+    toggleSide,
     takeMed,
     addMed,
     removeMed,

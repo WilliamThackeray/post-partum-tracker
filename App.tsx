@@ -35,12 +35,9 @@ function HomeScreen({
 }) {
   const {
     state,
-    selectedSide,
     timerLabel,
-    selectSide,
-    markSchedule,
-    startTimer,
-    endTimer,
+    toggleSession,
+    toggleSide,
     takeMed,
     addMed,
     removeMed,
@@ -63,12 +60,9 @@ function HomeScreen({
 
       <FeedPanel
         state={state}
-        selectedSide={selectedSide}
         timerLabel={timerLabel}
-        onSelectSide={selectSide}
-        onMarkSchedule={markSchedule}
-        onStartTimer={startTimer}
-        onEndTimer={endTimer}
+        onToggleSession={toggleSession}
+        onToggleSide={toggleSide}
         onSeeMoreFeeds={onSeeMoreFeeds}
       />
 
