@@ -1,4 +1,5 @@
-import type { AppState, BreastSide, FeedEntry, MedicineKey } from "./types";
+import type { AppState, BreastSide, FeedEntry } from "./types";
+import { parseMedicines } from "./medicine";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "postpartum-tracker";
@@ -14,10 +15,7 @@ export function defaultState(): AppState {
     feeds: [],
     scheduleStartedAt: null,
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
-    medicines: {
-      ibuprofen: { lastTakenAt: null },
-      tylenol: { lastTakenAt: null },
-    },
+    medicines: [],
   };
 }
 
@@ -48,14 +46,6 @@ function parseFeed(value: unknown): FeedEntry | null {
     endedAt: f.endedAt,
     durationMs: f.durationMs,
   };
-}
-
-function parseMedicine(value: unknown): { lastTakenAt: string | null } {
-  if (!value || typeof value !== "object") return { lastTakenAt: null };
-  const m = value as Record<string, unknown>;
-  if (m.lastTakenAt === null) return { lastTakenAt: null };
-  if (isIsoString(m.lastTakenAt)) return { lastTakenAt: m.lastTakenAt };
-  return { lastTakenAt: null };
 }
 
 function normalize(raw: unknown): AppState {
@@ -101,11 +91,8 @@ function normalize(raw: unknown): AppState {
     );
   }
 
-  if (data.medicines && typeof data.medicines === "object") {
-    const meds = data.medicines as Record<string, unknown>;
-    for (const key of ["ibuprofen", "tylenol"] as MedicineKey[]) {
-      base.medicines[key] = parseMedicine(meds[key]);
-    }
+  if (data.medicines !== undefined) {
+    base.medicines = parseMedicines(data.medicines);
   }
 
   return base;

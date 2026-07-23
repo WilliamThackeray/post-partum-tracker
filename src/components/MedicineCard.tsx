@@ -1,38 +1,59 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   formatDateTime,
+  formatIntervalHours,
   formatTime,
   isOverdue,
-  MEDICINE_LABELS,
   nextDueAt,
 } from "../medicine";
 import { colors, fonts, radius } from "../theme";
-import type { MedicineKey, MedicineState } from "../types";
+import type { Medicine } from "../types";
 
 type MedicineCardProps = {
-  medicineKey: MedicineKey;
-  medicine: MedicineState;
-  onTake: (key: MedicineKey) => void;
+  medicine: Medicine;
+  onTake: (id: string) => void;
+  onRemove: (id: string) => void;
   isFirst?: boolean;
 };
 
 export function MedicineCard({
-  medicineKey,
   medicine,
   onTake,
+  onRemove,
   isFirst = false,
 }: MedicineCardProps) {
+  if (!medicine) return null;
+
   const last = medicine.lastTakenAt;
-  const overdue = isOverdue(last);
+  const intervalHours = medicine.intervalHours;
+  const overdue = isOverdue(last, intervalHours);
   const nextLabel = last
     ? overdue
-      ? `${formatTime(nextDueAt(last).toISOString())} · due now`
-      : formatTime(nextDueAt(last).toISOString())
+      ? `${formatTime(nextDueAt(last, intervalHours).toISOString())} · due now`
+      : formatTime(nextDueAt(last, intervalHours).toISOString())
     : "—";
 
   return (
     <View style={[styles.card, isFirst && styles.cardFirst]}>
-      <Text style={styles.title}>{MEDICINE_LABELS[medicineKey]}</Text>
+      <View style={styles.header}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>{medicine.name}</Text>
+          <Text style={styles.interval}>
+            Every {formatIntervalHours(intervalHours)}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${medicine.name}`}
+          style={({ pressed }) => [
+            styles.removeBtn,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => onRemove(medicine.id)}
+        >
+          <Text style={styles.removeText}>Remove</Text>
+        </Pressable>
+      </View>
       <View style={styles.times}>
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Last taken</Text>
@@ -62,11 +83,9 @@ export function MedicineCard({
       <Pressable
         accessibilityRole="button"
         style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
-        onPress={() => onTake(medicineKey)}
+        onPress={() => onTake(medicine.id)}
       >
-        <Text style={styles.btnText}>
-          Took {MEDICINE_LABELS[medicineKey]}
-        </Text>
+        <Text style={styles.btnText}>Took {medicine.name}</Text>
       </Pressable>
     </View>
   );
@@ -82,11 +101,35 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     paddingTop: 2.4,
   },
-  title: {
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
     marginBottom: 10.4,
+  },
+  titleBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  title: {
     fontFamily: fonts.display,
     fontSize: 19.2,
     color: colors.ink,
+  },
+  interval: {
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    color: colors.inkMuted,
+  },
+  removeBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  removeText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    color: colors.inkMuted,
   },
   times: {
     flexDirection: "row",

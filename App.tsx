@@ -18,13 +18,9 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { FeedPanel } from "./src/components/FeedPanel";
 import { IntervalSettings } from "./src/components/IntervalSettings";
-import { MedicineCard } from "./src/components/MedicineCard";
+import { MedicinePanel } from "./src/components/MedicinePanel";
 import { useAppState } from "./src/hooks/useAppState";
-import { panelShadow } from "./src/shadow";
 import { colors, fonts } from "./src/theme";
-import type { MedicineKey } from "./src/types";
-
-const MEDICINE_KEYS: MedicineKey[] = ["ibuprofen", "tylenol"];
 
 function AppContent() {
   const {
@@ -37,6 +33,8 @@ function AppContent() {
     startTimer,
     endTimer,
     takeMed,
+    addMed,
+    removeMed,
     intervalDown,
     intervalUp,
   } = useAppState();
@@ -72,18 +70,12 @@ function AppContent() {
         onEndTimer={endTimer}
       />
 
-      <View style={styles.panel}>
-        <Text style={styles.panelHeading}>Medicine</Text>
-        {MEDICINE_KEYS.map((key, index) => (
-          <MedicineCard
-            key={key}
-            medicineKey={key}
-            medicine={state.medicines[key]}
-            onTake={takeMed}
-            isFirst={index === 0}
-          />
-        ))}
-      </View>
+      <MedicinePanel
+        medicines={state.medicines}
+        onTake={takeMed}
+        onAdd={addMed}
+        onRemove={removeMed}
+      />
 
       <IntervalSettings
         intervalHours={state.feedIntervalHours}
@@ -171,21 +163,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 16,
     color: colors.brandMuted,
-  },
-  panel: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    paddingHorizontal: 17.6,
-    paddingTop: 18.4,
-    paddingBottom: 20,
-    marginBottom: 16,
-    ...panelShadow,
-  },
-  panelHeading: {
-    marginBottom: 13.6,
-    fontFamily: fonts.display,
-    fontSize: 21.6,
-    color: colors.ink,
-    letterSpacing: -0.4,
   },
 });

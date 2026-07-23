@@ -13,9 +13,11 @@ export type FeedEntry = {
   durationMs: number;
 };
 
-export type MedicineKey = "ibuprofen" | "tylenol";
-
-export type MedicineState = {
+export type Medicine = {
+  id: string;
+  name: string;
+  /** Hours between doses. */
+  intervalHours: number;
   lastTakenAt: string | null;
 };
 
@@ -26,5 +28,5 @@ export type AppState = {
   /** When the current feeding cycle started (for last/next schedule). */
   scheduleStartedAt: string | null;
   feedIntervalHours: number;
-  medicines: Record<MedicineKey, MedicineState>;
+  medicines: Medicine[];
 };

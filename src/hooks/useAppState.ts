@@ -8,9 +8,9 @@ import {
   setFeedSide,
   startFeed,
 } from "../feed";
-import { takeMedicine } from "../medicine";
-import { loadState, saveState } from "../storage";
-import type { AppState, BreastSide, MedicineKey } from "../types";
+import { addMedicine, parseMedicines, removeMedicine, takeMedicine } from "../medicine";
+import { defaultState, loadState, saveState } from "../storage";
+import type { AppState, BreastSide } from "../types";
 
 export type UseAppStateResult = {
   ready: boolean;
@@ -21,10 +21,21 @@ export type UseAppStateResult = {
   markSchedule: () => void;
   startTimer: () => void;
   endTimer: () => void;
-  takeMed: (key: MedicineKey) => void;
+  takeMed: (id: string) => void;
+  addMed: (name: string, intervalHours: number) => void;
+  removeMed: (id: string) => void;
   intervalDown: () => void;
   intervalUp: () => void;
 };
+
+function coerceState(raw: AppState): AppState {
+  return {
+    ...raw,
+    medicines: Array.isArray(raw.medicines)
+      ? raw.medicines
+      : parseMedicines(raw.medicines),
+  };
+}
 
 export function useAppState(): UseAppStateResult {
   const [ready, setReady] = useState(false);
@@ -35,11 +46,13 @@ export function useAppState(): UseAppStateResult {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const loaded = await loadState();
+      const loaded = coerceState(await loadState());
       if (cancelled) return;
       setState(loaded);
       setSelectedSide(loaded.activeFeed?.side ?? loaded.lastBreast ?? "left");
       setReady(true);
+      // Re-save so legacy Record medicines get rewritten as an array.
+      await saveState(loaded);
     })();
     return () => {
       cancelled = true;
@@ -47,8 +60,9 @@ export function useAppState(): UseAppStateResult {
   }, []);
 
   const persist = useCallback(async (next: AppState) => {
-    setState(next);
-    await saveState(next);
+    const coerced = coerceState(next);
+    setState(coerced);
+    await saveState(coerced);
   }, []);
 
   useEffect(() => {
@@ -92,9 +106,25 @@ export function useAppState(): UseAppStateResult {
   }, [persist, selectedSide, state]);
 
   const takeMed = useCallback(
-    (key: MedicineKey) => {
+    (id: string) => {
       if (!state) return;
-      void persist(takeMedicine(state, key));
+      void persist(takeMedicine(state, id));
+    },
+    [persist, state],
+  );
+
+  const addMed = useCallback(
+    (name: string, intervalHours: number) => {
+      if (!state) return;
+      void persist(addMedicine(state, name, intervalHours));
+    },
+    [persist, state],
+  );
+
+  const removeMed = useCallback(
+    (id: string) => {
+      if (!state) return;
+      void persist(removeMedicine(state, id));
     },
     [persist, state],
   );
@@ -116,7 +146,7 @@ export function useAppState(): UseAppStateResult {
 
   return {
     ready,
-    state: state ?? ({} as AppState),
+    state: state ?? defaultState(),
     selectedSide,
     timerLabel,
     selectSide,
@@ -124,6 +154,8 @@ export function useAppState(): UseAppStateResult {
     startTimer,
     endTimer,
     takeMed,
+    addMed,
+    removeMed,
     intervalDown,
     intervalUp,
   };
