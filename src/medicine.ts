@@ -4,6 +4,7 @@ import type { AppState, Medicine, MedicineScope } from "./types";
 export const DEFAULT_MEDICINE_INTERVAL_HOURS = 8;
 export const MIN_MEDICINE_INTERVAL_HOURS = 0.5;
 export const MAX_MEDICINE_INTERVAL_HOURS = 24;
+export const MAX_MEDICINE_TAKES = 50;
 
 const LEGACY_MEDICINE_LABELS: Record<string, string> = {
   ibuprofen: "Ibuprofen",
@@ -30,11 +31,35 @@ export function takeMedicine(
   id: string,
 ): AppState {
   const key = medicinesKey(scope);
+  const takenAt = new Date().toISOString();
   return {
     ...state,
-    [key]: state[key].map((med) =>
-      med.id === id ? { ...med, lastTakenAt: new Date().toISOString() } : med,
-    ),
+    [key]: state[key].map((med) => {
+      if (med.id !== id) return med;
+      const takenAtLog = [takenAt, ...med.takenAtLog].slice(0, MAX_MEDICINE_TAKES);
+      return { ...med, lastTakenAt: takenAt, takenAtLog };
+    }),
+  };
+}
+
+export function undoTakeMedicine(
+  state: AppState,
+  scope: MedicineScope,
+  id: string,
+): AppState {
+  const key = medicinesKey(scope);
+  return {
+    ...state,
+    [key]: state[key].map((med) => {
+      if (med.id !== id) return med;
+      if (med.takenAtLog.length === 0 && med.lastTakenAt == null) return med;
+      const takenAtLog = med.takenAtLog.length > 0 ? med.takenAtLog.slice(1) : [];
+      return {
+        ...med,
+        takenAtLog,
+        lastTakenAt: takenAtLog[0] ?? null,
+      };
+    }),
   };
 }
 
@@ -52,6 +77,7 @@ export function addMedicine(
     name: trimmed,
     intervalHours: clampMedicineIntervalHours(intervalHours),
     lastTakenAt: null,
+    takenAtLog: [],
   };
 
   const key = medicinesKey(scope);
@@ -125,6 +151,23 @@ function parseLastTakenAt(value: unknown): string | null {
   return null;
 }
 
+function parseTakenAtLog(
+  value: unknown,
+  lastTakenAt: string | null,
+): string[] {
+  if (Array.isArray(value)) {
+    const log = value
+      .filter(
+        (item): item is string =>
+          typeof item === "string" && !Number.isNaN(Date.parse(item)),
+      )
+      .slice(0, MAX_MEDICINE_TAKES);
+    if (log.length > 0) return log;
+  }
+  // Seed from lastTakenAt so undo works for pre-log data
+  return lastTakenAt ? [lastTakenAt] : [];
+}
+
 export function parseMedicines(value: unknown): Medicine[] {
   if (Array.isArray(value)) {
     return value
@@ -134,11 +177,14 @@ export function parseMedicines(value: unknown): Medicine[] {
         if (typeof m.id !== "string" || typeof m.name !== "string") return null;
         const name = m.name.trim();
         if (!name) return null;
+        const lastTakenAt = parseLastTakenAt(m.lastTakenAt);
+        const takenAtLog = parseTakenAtLog(m.takenAtLog, lastTakenAt);
         return {
           id: m.id,
           name,
           intervalHours: parseIntervalHours(m.intervalHours),
-          lastTakenAt: parseLastTakenAt(m.lastTakenAt),
+          lastTakenAt: takenAtLog[0] ?? lastTakenAt,
+          takenAtLog,
         };
       })
       .filter((m): m is Medicine => m !== null);
@@ -152,11 +198,13 @@ export function parseMedicines(value: unknown): Medicine[] {
       const entry = meds[key];
       if (!entry || typeof entry !== "object") continue;
       const m = entry as Record<string, unknown>;
+      const lastTakenAt = parseLastTakenAt(m.lastTakenAt);
       migrated.push({
         id: key,
         name: label,
         intervalHours: DEFAULT_MEDICINE_INTERVAL_HOURS,
-        lastTakenAt: parseLastTakenAt(m.lastTakenAt),
+        lastTakenAt,
+        takenAtLog: lastTakenAt ? [lastTakenAt] : [],
       });
     }
     return migrated;

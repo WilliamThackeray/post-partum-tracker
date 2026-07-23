@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { formatDuration, sideTotals } from "../feed";
 import { formatDateTime } from "../medicine";
@@ -55,7 +55,18 @@ function FeedLogRow({
           style={styles.deleteAction}
           onPress={() => {
             swipeRef.current?.close();
-            onDelete(feed.id);
+            Alert.alert(
+              "Delete feed?",
+              `This removes the feed from ${formatDateTime(feed.endedAt)}.`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => onDelete(feed.id),
+                },
+              ],
+            );
           }}
         >
           <Text style={styles.deleteText}>Delete</Text>

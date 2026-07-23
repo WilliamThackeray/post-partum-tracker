@@ -33,6 +33,8 @@ export type Medicine = {
   /** Hours between doses. */
   intervalHours: number;
   lastTakenAt: string | null;
+  /** Newest-first take timestamps for undo / future history. */
+  takenAtLog: string[];
 };
 
 export type MedicineScope = "mother" | "baby";

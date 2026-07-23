@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { diaperKind, formatDiaperKind } from "../diaper";
 import { formatDateTime } from "../medicine";
@@ -44,7 +44,18 @@ function DiaperLogRow({
           style={styles.deleteAction}
           onPress={() => {
             swipeRef.current?.close();
-            onDelete(change.id);
+            Alert.alert(
+              "Delete diaper log?",
+              `This removes the ${kindLabel.toLowerCase()} change from ${formatDateTime(change.changedAt)}.`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => onDelete(change.id),
+                },
+              ],
+            );
           }}
         >
           <Text style={styles.deleteText}>Delete</Text>

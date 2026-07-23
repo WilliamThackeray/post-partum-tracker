@@ -10,6 +10,7 @@ type MedicinePanelProps = {
   title: string;
   medicines: Medicine[];
   onTake: (id: string) => void;
+  onUndoTake: (id: string) => void;
   onAdd: (name: string, intervalHours: number) => void;
   onRemove: (id: string) => void;
 };
@@ -18,6 +19,7 @@ export function MedicinePanel({
   title,
   medicines,
   onTake,
+  onUndoTake,
   onAdd,
   onRemove,
 }: MedicinePanelProps) {
@@ -36,6 +38,7 @@ export function MedicinePanel({
             key={medicine.id}
             medicine={medicine}
             onTake={onTake}
+            onUndoTake={onUndoTake}
             onRemove={onRemove}
             isFirst={index === 0}
           />

@@ -50,6 +50,7 @@ function HomeScreen({
     toggleSide,
     deleteLoggedFeed,
     takeMed,
+    undoTakeMed,
     addMed,
     removeMed,
     logDiaperChange,
@@ -102,6 +103,7 @@ function HomeScreen({
           title="Mom's medicine"
           medicines={state.motherMedicines}
           onTake={(id) => takeMed("mother", id)}
+          onUndoTake={(id) => undoTakeMed("mother", id)}
           onAdd={(name, hours) => addMed("mother", name, hours)}
           onRemove={(id) => removeMed("mother", id)}
         />
@@ -112,6 +114,7 @@ function HomeScreen({
           title="Baby's medicine"
           medicines={state.babyMedicines}
           onTake={(id) => takeMed("baby", id)}
+          onUndoTake={(id) => undoTakeMed("baby", id)}
           onAdd={(name, hours) => addMed("baby", name, hours)}
           onRemove={(id) => removeMed("baby", id)}
         />

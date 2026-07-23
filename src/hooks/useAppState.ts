@@ -10,7 +10,13 @@ import {
   startSide,
   stopSession,
 } from "../feed";
-import { addMedicine, parseMedicines, removeMedicine, takeMedicine } from "../medicine";
+import {
+  addMedicine,
+  parseMedicines,
+  removeMedicine,
+  takeMedicine,
+  undoTakeMedicine,
+} from "../medicine";
 import {
   defaultState,
   defaultVisiblePanels,
@@ -33,6 +39,7 @@ export type UseAppStateResult = {
   toggleSide: (side: BreastSide) => void;
   deleteLoggedFeed: (id: string) => void;
   takeMed: (scope: MedicineScope, id: string) => void;
+  undoTakeMed: (scope: MedicineScope, id: string) => void;
   addMed: (scope: MedicineScope, name: string, intervalHours: number) => void;
   removeMed: (scope: MedicineScope, id: string) => void;
   logDiaperChange: (kind: DiaperKind) => void;
@@ -45,12 +52,8 @@ export type UseAppStateResult = {
 function coerceState(raw: AppState): AppState {
   return {
     ...raw,
-    motherMedicines: Array.isArray(raw.motherMedicines)
-      ? raw.motherMedicines
-      : parseMedicines(raw.motherMedicines),
-    babyMedicines: Array.isArray(raw.babyMedicines)
-      ? raw.babyMedicines
-      : parseMedicines(raw.babyMedicines),
+    motherMedicines: parseMedicines(raw.motherMedicines),
+    babyMedicines: parseMedicines(raw.babyMedicines),
     diapers: Array.isArray(raw.diapers) ? raw.diapers : parseDiapers(raw.diapers),
     visiblePanels: {
       ...defaultVisiblePanels(),
@@ -127,6 +130,14 @@ export function useAppState(): UseAppStateResult {
     [persist, state],
   );
 
+  const undoTakeMed = useCallback(
+    (scope: MedicineScope, id: string) => {
+      if (!state) return;
+      void persist(undoTakeMedicine(state, scope, id));
+    },
+    [persist, state],
+  );
+
   const addMed = useCallback(
     (scope: MedicineScope, name: string, intervalHours: number) => {
       if (!state) return;
@@ -194,6 +205,7 @@ export function useAppState(): UseAppStateResult {
     toggleSide,
     deleteLoggedFeed,
     takeMed,
+    undoTakeMed,
     addMed,
     removeMed,
     logDiaperChange,
