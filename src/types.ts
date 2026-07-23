@@ -35,6 +35,15 @@ export type Medicine = {
   lastTakenAt: string | null;
 };
 
+export type DiaperKind = "wet" | "messy" | "both";
+
+export type DiaperChange = {
+  id: string;
+  changedAt: string;
+  wet: boolean;
+  messy: boolean;
+};
+
 export type AppState = {
   lastBreast: BreastSide | null;
   activeSession: ActiveSession | null;
@@ -43,4 +52,5 @@ export type AppState = {
   scheduleStartedAt: string | null;
   feedIntervalHours: number;
   medicines: Medicine[];
+  diapers: DiaperChange[];
 };

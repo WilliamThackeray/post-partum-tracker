@@ -18,6 +18,8 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { DiaperLogsScreen } from "./src/components/DiaperLogsScreen";
+import { DiaperPanel } from "./src/components/DiaperPanel";
 import { FeedLogsScreen } from "./src/components/FeedLogsScreen";
 import { FeedPanel } from "./src/components/FeedPanel";
 import { IntervalSettings } from "./src/components/IntervalSettings";
@@ -25,14 +27,16 @@ import { MedicinePanel } from "./src/components/MedicinePanel";
 import { useAppState, type UseAppStateResult } from "./src/hooks/useAppState";
 import { colors, fonts } from "./src/theme";
 
-type Screen = "home" | "feedLogs";
+type Screen = "home" | "feedLogs" | "diaperLogs";
 
 function HomeScreen({
   app,
   onSeeMoreFeeds,
+  onSeeMoreDiapers,
 }: {
   app: UseAppStateResult;
   onSeeMoreFeeds: () => void;
+  onSeeMoreDiapers: () => void;
 }) {
   const {
     state,
@@ -43,6 +47,8 @@ function HomeScreen({
     takeMed,
     addMed,
     removeMed,
+    logDiaperChange,
+    deleteLoggedDiaper,
     intervalDown,
     intervalUp,
   } = app;
@@ -76,6 +82,13 @@ function HomeScreen({
         onRemove={removeMed}
       />
 
+      <DiaperPanel
+        diapers={state.diapers}
+        onLog={logDiaperChange}
+        onDelete={deleteLoggedDiaper}
+        onSeeMoreDiapers={onSeeMoreDiapers}
+      />
+
       <IntervalSettings
         intervalHours={state.feedIntervalHours}
         onDown={intervalDown}
@@ -107,8 +120,22 @@ function AppContent() {
     );
   }
 
+  if (screen === "diaperLogs") {
+    return (
+      <DiaperLogsScreen
+        diapers={app.state.diapers}
+        onBack={() => setScreen("home")}
+        onDeleteDiaper={app.deleteLoggedDiaper}
+      />
+    );
+  }
+
   return (
-    <HomeScreen app={app} onSeeMoreFeeds={() => setScreen("feedLogs")} />
+    <HomeScreen
+      app={app}
+      onSeeMoreFeeds={() => setScreen("feedLogs")}
+      onSeeMoreDiapers={() => setScreen("diaperLogs")}
+    />
   );
 }
 

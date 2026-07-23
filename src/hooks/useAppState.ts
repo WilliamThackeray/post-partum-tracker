@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { deleteDiaper, logDiaper, parseDiapers } from "../diaper";
 import {
   deleteFeed,
   endSide,
@@ -11,7 +12,7 @@ import {
 } from "../feed";
 import { addMedicine, parseMedicines, removeMedicine, takeMedicine } from "../medicine";
 import { defaultState, loadState, saveState } from "../storage";
-import type { AppState, BreastSide } from "../types";
+import type { AppState, BreastSide, DiaperKind } from "../types";
 
 export type UseAppStateResult = {
   ready: boolean;
@@ -23,6 +24,8 @@ export type UseAppStateResult = {
   takeMed: (id: string) => void;
   addMed: (name: string, intervalHours: number) => void;
   removeMed: (id: string) => void;
+  logDiaperChange: (kind: DiaperKind) => void;
+  deleteLoggedDiaper: (id: string) => void;
   intervalDown: () => void;
   intervalUp: () => void;
 };
@@ -33,6 +36,7 @@ function coerceState(raw: AppState): AppState {
     medicines: Array.isArray(raw.medicines)
       ? raw.medicines
       : parseMedicines(raw.medicines),
+    diapers: Array.isArray(raw.diapers) ? raw.diapers : parseDiapers(raw.diapers),
   };
 }
 
@@ -120,6 +124,22 @@ export function useAppState(): UseAppStateResult {
     [persist, state],
   );
 
+  const logDiaperChange = useCallback(
+    (kind: DiaperKind) => {
+      if (!state) return;
+      void persist(logDiaper(state, kind));
+    },
+    [persist, state],
+  );
+
+  const deleteLoggedDiaper = useCallback(
+    (id: string) => {
+      if (!state) return;
+      void persist(deleteDiaper(state, id));
+    },
+    [persist, state],
+  );
+
   const intervalDown = useCallback(() => {
     if (!state) return;
     void persist(setFeedIntervalHours(state, state.feedIntervalHours - 0.5));
@@ -146,6 +166,8 @@ export function useAppState(): UseAppStateResult {
     takeMed,
     addMed,
     removeMed,
+    logDiaperChange,
+    deleteLoggedDiaper,
     intervalDown,
     intervalUp,
   };

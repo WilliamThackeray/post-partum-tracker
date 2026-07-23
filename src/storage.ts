@@ -5,6 +5,7 @@ import type {
   FeedSegment,
   FeedSession,
 } from "./types";
+import { parseDiapers } from "./diaper";
 import { parseMedicines } from "./medicine";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -22,6 +23,7 @@ export function defaultState(): AppState {
     scheduleStartedAt: null,
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
     medicines: [],
+    diapers: [],
   };
 }
 
@@ -179,6 +181,10 @@ function normalize(raw: unknown): AppState {
 
   if (data.medicines !== undefined) {
     base.medicines = parseMedicines(data.medicines);
+  }
+
+  if (data.diapers !== undefined) {
+    base.diapers = parseDiapers(data.diapers);
   }
 
   return base;
