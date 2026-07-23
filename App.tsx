@@ -97,12 +97,23 @@ function HomeScreen({
         />
       ) : null}
 
-      {visiblePanels.medicine ? (
+      {visiblePanels.motherMedicine ? (
         <MedicinePanel
-          medicines={state.medicines}
-          onTake={takeMed}
-          onAdd={addMed}
-          onRemove={removeMed}
+          title="Mom's medicine"
+          medicines={state.motherMedicines}
+          onTake={(id) => takeMed("mother", id)}
+          onAdd={(name, hours) => addMed("mother", name, hours)}
+          onRemove={(id) => removeMed("mother", id)}
+        />
+      ) : null}
+
+      {visiblePanels.babyMedicine ? (
+        <MedicinePanel
+          title="Baby's medicine"
+          medicines={state.babyMedicines}
+          onTake={(id) => takeMed("baby", id)}
+          onAdd={(name, hours) => addMed("baby", name, hours)}
+          onRemove={(id) => removeMed("baby", id)}
         />
       ) : null}
 

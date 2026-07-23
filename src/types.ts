@@ -35,6 +35,8 @@ export type Medicine = {
   lastTakenAt: string | null;
 };
 
+export type MedicineScope = "mother" | "baby";
+
 export type DiaperKind = "wet" | "messy" | "both";
 
 export type DiaperChange = {
@@ -44,7 +46,12 @@ export type DiaperChange = {
   messy: boolean;
 };
 
-export type PanelId = "feed" | "medicine" | "diaper" | "interval";
+export type PanelId =
+  | "feed"
+  | "motherMedicine"
+  | "babyMedicine"
+  | "diaper"
+  | "interval";
 
 export type VisiblePanels = Record<PanelId, boolean>;
 
@@ -55,7 +62,8 @@ export type AppState = {
   /** When the current feeding cycle started (for last/next schedule). */
   scheduleStartedAt: string | null;
   feedIntervalHours: number;
-  medicines: Medicine[];
+  motherMedicines: Medicine[];
+  babyMedicines: Medicine[];
   diapers: DiaperChange[];
   visiblePanels: VisiblePanels;
 };

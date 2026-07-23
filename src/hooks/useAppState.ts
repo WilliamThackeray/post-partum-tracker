@@ -17,7 +17,13 @@ import {
   loadState,
   saveState,
 } from "../storage";
-import type { AppState, BreastSide, DiaperKind, PanelId } from "../types";
+import type {
+  AppState,
+  BreastSide,
+  DiaperKind,
+  MedicineScope,
+  PanelId,
+} from "../types";
 
 export type UseAppStateResult = {
   ready: boolean;
@@ -26,9 +32,9 @@ export type UseAppStateResult = {
   toggleSession: () => void;
   toggleSide: (side: BreastSide) => void;
   deleteLoggedFeed: (id: string) => void;
-  takeMed: (id: string) => void;
-  addMed: (name: string, intervalHours: number) => void;
-  removeMed: (id: string) => void;
+  takeMed: (scope: MedicineScope, id: string) => void;
+  addMed: (scope: MedicineScope, name: string, intervalHours: number) => void;
+  removeMed: (scope: MedicineScope, id: string) => void;
   logDiaperChange: (kind: DiaperKind) => void;
   deleteLoggedDiaper: (id: string) => void;
   intervalDown: () => void;
@@ -39,9 +45,12 @@ export type UseAppStateResult = {
 function coerceState(raw: AppState): AppState {
   return {
     ...raw,
-    medicines: Array.isArray(raw.medicines)
-      ? raw.medicines
-      : parseMedicines(raw.medicines),
+    motherMedicines: Array.isArray(raw.motherMedicines)
+      ? raw.motherMedicines
+      : parseMedicines(raw.motherMedicines),
+    babyMedicines: Array.isArray(raw.babyMedicines)
+      ? raw.babyMedicines
+      : parseMedicines(raw.babyMedicines),
     diapers: Array.isArray(raw.diapers) ? raw.diapers : parseDiapers(raw.diapers),
     visiblePanels: {
       ...defaultVisiblePanels(),
@@ -111,25 +120,25 @@ export function useAppState(): UseAppStateResult {
   );
 
   const takeMed = useCallback(
-    (id: string) => {
+    (scope: MedicineScope, id: string) => {
       if (!state) return;
-      void persist(takeMedicine(state, id));
+      void persist(takeMedicine(state, scope, id));
     },
     [persist, state],
   );
 
   const addMed = useCallback(
-    (name: string, intervalHours: number) => {
+    (scope: MedicineScope, name: string, intervalHours: number) => {
       if (!state) return;
-      void persist(addMedicine(state, name, intervalHours));
+      void persist(addMedicine(state, scope, name, intervalHours));
     },
     [persist, state],
   );
 
   const removeMed = useCallback(
-    (id: string) => {
+    (scope: MedicineScope, id: string) => {
       if (!state) return;
-      void persist(removeMedicine(state, id));
+      void persist(removeMedicine(state, scope, id));
     },
     [persist, state],
   );

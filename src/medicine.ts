@@ -1,5 +1,5 @@
 import { createId } from "./id";
-import type { AppState, Medicine } from "./types";
+import type { AppState, Medicine, MedicineScope } from "./types";
 
 export const DEFAULT_MEDICINE_INTERVAL_HOURS = 8;
 export const MIN_MEDICINE_INTERVAL_HOURS = 0.5;
@@ -10,6 +10,12 @@ const LEGACY_MEDICINE_LABELS: Record<string, string> = {
   tylenol: "Tylenol",
 };
 
+function medicinesKey(
+  scope: MedicineScope,
+): "motherMedicines" | "babyMedicines" {
+  return scope === "mother" ? "motherMedicines" : "babyMedicines";
+}
+
 export function clampMedicineIntervalHours(hours: number): number {
   if (!Number.isFinite(hours)) return DEFAULT_MEDICINE_INTERVAL_HOURS;
   return Math.min(
@@ -18,10 +24,15 @@ export function clampMedicineIntervalHours(hours: number): number {
   );
 }
 
-export function takeMedicine(state: AppState, id: string): AppState {
+export function takeMedicine(
+  state: AppState,
+  scope: MedicineScope,
+  id: string,
+): AppState {
+  const key = medicinesKey(scope);
   return {
     ...state,
-    medicines: state.medicines.map((med) =>
+    [key]: state[key].map((med) =>
       med.id === id ? { ...med, lastTakenAt: new Date().toISOString() } : med,
     ),
   };
@@ -29,6 +40,7 @@ export function takeMedicine(state: AppState, id: string): AppState {
 
 export function addMedicine(
   state: AppState,
+  scope: MedicineScope,
   name: string,
   intervalHours: number,
 ): AppState {
@@ -42,16 +54,22 @@ export function addMedicine(
     lastTakenAt: null,
   };
 
+  const key = medicinesKey(scope);
   return {
     ...state,
-    medicines: [...state.medicines, medicine],
+    [key]: [...state[key], medicine],
   };
 }
 
-export function removeMedicine(state: AppState, id: string): AppState {
+export function removeMedicine(
+  state: AppState,
+  scope: MedicineScope,
+  id: string,
+): AppState {
+  const key = medicinesKey(scope);
   return {
     ...state,
-    medicines: state.medicines.filter((med) => med.id !== id),
+    [key]: state[key].filter((med) => med.id !== id),
   };
 }
 

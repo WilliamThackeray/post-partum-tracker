@@ -7,6 +7,7 @@ import { AddMedicineSheet } from "./AddMedicineSheet";
 import { MedicineCard } from "./MedicineCard";
 
 type MedicinePanelProps = {
+  title: string;
   medicines: Medicine[];
   onTake: (id: string) => void;
   onAdd: (name: string, intervalHours: number) => void;
@@ -14,6 +15,7 @@ type MedicinePanelProps = {
 };
 
 export function MedicinePanel({
+  title,
   medicines,
   onTake,
   onAdd,
@@ -24,7 +26,7 @@ export function MedicinePanel({
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.heading}>Medicine</Text>
+      <Text style={styles.heading}>{title}</Text>
 
       {list.length === 0 ? (
         <Text style={styles.empty}>No medicines yet. Add one to get started.</Text>

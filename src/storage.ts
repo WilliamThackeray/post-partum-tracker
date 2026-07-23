@@ -17,12 +17,19 @@ export const DEFAULT_FEED_INTERVAL_HOURS = 3;
 export const MIN_FEED_INTERVAL_HOURS = 1;
 export const MAX_FEED_INTERVAL_HOURS = 6;
 
-const PANEL_IDS: PanelId[] = ["feed", "medicine", "diaper", "interval"];
+const PANEL_IDS: PanelId[] = [
+  "feed",
+  "motherMedicine",
+  "babyMedicine",
+  "diaper",
+  "interval",
+];
 
 export function defaultVisiblePanels(): VisiblePanels {
   return {
     feed: true,
-    medicine: true,
+    motherMedicine: true,
+    babyMedicine: true,
     diaper: true,
     interval: true,
   };
@@ -35,7 +42,8 @@ export function defaultState(): AppState {
     feeds: [],
     scheduleStartedAt: null,
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
-    medicines: [],
+    motherMedicines: [],
+    babyMedicines: [],
     diapers: [],
     visiblePanels: defaultVisiblePanels(),
   };
@@ -49,6 +57,15 @@ function parseVisiblePanels(value: unknown): VisiblePanels {
     if (typeof data[id] === "boolean") {
       base[id] = data[id];
     }
+  }
+  // Migrate legacy single "medicine" toggle → both medicine panels
+  if (
+    typeof data.medicine === "boolean" &&
+    data.motherMedicine === undefined &&
+    data.babyMedicine === undefined
+  ) {
+    base.motherMedicine = data.medicine;
+    base.babyMedicine = data.medicine;
   }
   return base;
 }
@@ -205,8 +222,15 @@ function normalize(raw: unknown): AppState {
     );
   }
 
-  if (data.medicines !== undefined) {
-    base.medicines = parseMedicines(data.medicines);
+  if (data.motherMedicines !== undefined) {
+    base.motherMedicines = parseMedicines(data.motherMedicines);
+  } else if (data.medicines !== undefined) {
+    // Migrate legacy single medicines list → mother's medicines
+    base.motherMedicines = parseMedicines(data.medicines);
+  }
+
+  if (data.babyMedicines !== undefined) {
+    base.babyMedicines = parseMedicines(data.babyMedicines);
   }
 
   if (data.diapers !== undefined) {
