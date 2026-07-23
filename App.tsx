@@ -16,6 +16,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { FeedLogsScreen } from "./src/components/FeedLogsScreen";
 import { FeedPanel } from "./src/components/FeedPanel";
@@ -38,6 +39,7 @@ function HomeScreen({
     timerLabel,
     toggleSession,
     toggleSide,
+    deleteLoggedFeed,
     takeMed,
     addMed,
     removeMed,
@@ -63,6 +65,7 @@ function HomeScreen({
         timerLabel={timerLabel}
         onToggleSession={toggleSession}
         onToggleSide={toggleSide}
+        onDeleteFeed={deleteLoggedFeed}
         onSeeMoreFeeds={onSeeMoreFeeds}
       />
 
@@ -99,6 +102,7 @@ function AppContent() {
       <FeedLogsScreen
         feeds={app.state.feeds}
         onBack={() => setScreen("home")}
+        onDeleteFeed={app.deleteLoggedFeed}
       />
     );
   }
@@ -125,20 +129,22 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <LinearGradient
-        colors={[colors.bgTop, colors.bgMid, colors.bgBottom]}
-        locations={[0, 0.28, 0.72]}
-        style={styles.root}
-      >
-        <StatusBar style="light" />
-        <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-          <View style={styles.shell}>
-            <AppContent />
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <LinearGradient
+          colors={[colors.bgTop, colors.bgMid, colors.bgBottom]}
+          locations={[0, 0.28, 0.72]}
+          style={styles.root}
+        >
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+            <View style={styles.shell}>
+              <AppContent />
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

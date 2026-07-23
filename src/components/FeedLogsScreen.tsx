@@ -7,9 +7,14 @@ import { FeedLogList } from "./FeedLogList";
 type FeedLogsScreenProps = {
   feeds: FeedSession[];
   onBack: () => void;
+  onDeleteFeed: (id: string) => void;
 };
 
-export function FeedLogsScreen({ feeds, onBack }: FeedLogsScreenProps) {
+export function FeedLogsScreen({
+  feeds,
+  onBack,
+  onDeleteFeed,
+}: FeedLogsScreenProps) {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -37,7 +42,7 @@ export function FeedLogsScreen({ feeds, onBack }: FeedLogsScreenProps) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.panel}>
-          <FeedLogList feeds={feeds} />
+          <FeedLogList feeds={feeds} onDelete={onDeleteFeed} />
         </View>
       </ScrollView>
     </View>

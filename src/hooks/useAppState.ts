@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  deleteFeed,
   endSide,
   elapsedMs,
   formatDuration,
@@ -18,6 +19,7 @@ export type UseAppStateResult = {
   timerLabel: string;
   toggleSession: () => void;
   toggleSide: (side: BreastSide) => void;
+  deleteLoggedFeed: (id: string) => void;
   takeMed: (id: string) => void;
   addMed: (name: string, intervalHours: number) => void;
   removeMed: (id: string) => void;
@@ -86,6 +88,14 @@ export function useAppState(): UseAppStateResult {
     [persist, state],
   );
 
+  const deleteLoggedFeed = useCallback(
+    (id: string) => {
+      if (!state) return;
+      void persist(deleteFeed(state, id));
+    },
+    [persist, state],
+  );
+
   const takeMed = useCallback(
     (id: string) => {
       if (!state) return;
@@ -132,6 +142,7 @@ export function useAppState(): UseAppStateResult {
     timerLabel,
     toggleSession,
     toggleSide,
+    deleteLoggedFeed,
     takeMed,
     addMed,
     removeMed,

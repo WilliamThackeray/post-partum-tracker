@@ -18,6 +18,7 @@ type FeedPanelProps = {
   timerLabel: string;
   onToggleSession: () => void;
   onToggleSide: (side: BreastSide) => void;
+  onDeleteFeed: (id: string) => void;
   onSeeMoreFeeds: () => void;
 };
 
@@ -26,6 +27,7 @@ export function FeedPanel({
   timerLabel,
   onToggleSession,
   onToggleSide,
+  onDeleteFeed,
   onSeeMoreFeeds,
 }: FeedPanelProps) {
   const sessionActive = Boolean(state.activeSession);
@@ -121,7 +123,7 @@ export function FeedPanel({
       ) : null}
 
       <View style={styles.history}>
-        <FeedLogList feeds={previewFeeds} />
+        <FeedLogList feeds={previewFeeds} onDelete={onDeleteFeed} />
         {hasMoreFeeds ? (
           <Pressable
             accessibilityRole="button"

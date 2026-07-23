@@ -109,6 +109,28 @@ export function endSide(state: AppState): AppState {
   };
 }
 
+/** Remove a logged feed and refresh next-feed schedule from remaining history. */
+export function deleteFeed(state: AppState, id: string): AppState {
+  const feeds = state.feeds.filter((feed) => feed.id !== id);
+  if (feeds.length === state.feeds.length) return state;
+
+  // Keep active session schedule; otherwise base next feed on newest remaining log.
+  const scheduleStartedAt = state.activeSession
+    ? state.scheduleStartedAt
+    : (feeds[0]?.startedAt ?? null);
+
+  return {
+    ...state,
+    feeds,
+    scheduleStartedAt,
+    lastBreast:
+      feeds.length === 0
+        ? null
+        : (feeds[0]?.segments[feeds[0].segments.length - 1]?.side ??
+          state.lastBreast),
+  };
+}
+
 export function setFeedIntervalHours(state: AppState, hours: number): AppState {
   const clamped = Math.min(
     MAX_FEED_INTERVAL_HOURS,
