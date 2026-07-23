@@ -4,6 +4,7 @@ import {
   SourceSans3_500Medium,
   SourceSans3_600SemiBold,
 } from "@expo-google-fonts/source-sans-3";
+import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +12,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,19 +26,22 @@ import { FeedLogsScreen } from "./src/components/FeedLogsScreen";
 import { FeedPanel } from "./src/components/FeedPanel";
 import { IntervalSettings } from "./src/components/IntervalSettings";
 import { MedicinePanel } from "./src/components/MedicinePanel";
+import { SettingsScreen } from "./src/components/SettingsScreen";
 import { useAppState, type UseAppStateResult } from "./src/hooks/useAppState";
 import { colors, fonts } from "./src/theme";
 
-type Screen = "home" | "feedLogs" | "diaperLogs";
+type Screen = "home" | "feedLogs" | "diaperLogs" | "settings";
 
 function HomeScreen({
   app,
   onSeeMoreFeeds,
   onSeeMoreDiapers,
+  onOpenSettings,
 }: {
   app: UseAppStateResult;
   onSeeMoreFeeds: () => void;
   onSeeMoreDiapers: () => void;
+  onOpenSettings: () => void;
 }) {
   const {
     state,
@@ -52,6 +57,7 @@ function HomeScreen({
     intervalDown,
     intervalUp,
   } = app;
+  const { visiblePanels } = state;
 
   return (
     <ScrollView
@@ -59,41 +65,63 @@ function HomeScreen({
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.brand}>
-        <Text style={styles.brandTitle}>Nest</Text>
-        <Text style={styles.brandTagline}>
-          Feeding & medicine, for the long nights.
-        </Text>
+      <View style={styles.brandRow}>
+        <View style={styles.brand}>
+          <Text style={styles.brandTitle}>Nest</Text>
+          <Text style={styles.brandTagline}>
+            Feeding & medicine, for the long nights.
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          onPress={onOpenSettings}
+          style={({ pressed }) => [
+            styles.settingsBtn,
+            pressed && styles.settingsBtnPressed,
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons name="settings-outline" size={22} color={colors.brand} />
+        </Pressable>
       </View>
 
-      <FeedPanel
-        state={state}
-        timerLabel={timerLabel}
-        onToggleSession={toggleSession}
-        onToggleSide={toggleSide}
-        onDeleteFeed={deleteLoggedFeed}
-        onSeeMoreFeeds={onSeeMoreFeeds}
-      />
+      {visiblePanels.feed ? (
+        <FeedPanel
+          state={state}
+          timerLabel={timerLabel}
+          onToggleSession={toggleSession}
+          onToggleSide={toggleSide}
+          onDeleteFeed={deleteLoggedFeed}
+          onSeeMoreFeeds={onSeeMoreFeeds}
+        />
+      ) : null}
 
-      <MedicinePanel
-        medicines={state.medicines}
-        onTake={takeMed}
-        onAdd={addMed}
-        onRemove={removeMed}
-      />
+      {visiblePanels.medicine ? (
+        <MedicinePanel
+          medicines={state.medicines}
+          onTake={takeMed}
+          onAdd={addMed}
+          onRemove={removeMed}
+        />
+      ) : null}
 
-      <DiaperPanel
-        diapers={state.diapers}
-        onLog={logDiaperChange}
-        onDelete={deleteLoggedDiaper}
-        onSeeMoreDiapers={onSeeMoreDiapers}
-      />
+      {visiblePanels.diaper ? (
+        <DiaperPanel
+          diapers={state.diapers}
+          onLog={logDiaperChange}
+          onDelete={deleteLoggedDiaper}
+          onSeeMoreDiapers={onSeeMoreDiapers}
+        />
+      ) : null}
 
-      <IntervalSettings
-        intervalHours={state.feedIntervalHours}
-        onDown={intervalDown}
-        onUp={intervalUp}
-      />
+      {visiblePanels.interval ? (
+        <IntervalSettings
+          intervalHours={state.feedIntervalHours}
+          onDown={intervalDown}
+          onUp={intervalUp}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -130,11 +158,22 @@ function AppContent() {
     );
   }
 
+  if (screen === "settings") {
+    return (
+      <SettingsScreen
+        visiblePanels={app.state.visiblePanels}
+        onBack={() => setScreen("home")}
+        onSetPanelVisible={app.setPanelVisible}
+      />
+    );
+  }
+
   return (
     <HomeScreen
       app={app}
       onSeeMoreFeeds={() => setScreen("feedLogs")}
       onSeeMoreDiapers={() => setScreen("diaperLogs")}
+      onOpenSettings={() => setScreen("settings")}
     />
   );
 }
@@ -202,9 +241,16 @@ const styles = StyleSheet.create({
     paddingTop: 6.4,
     paddingBottom: 28,
   },
-  brand: {
-    paddingHorizontal: 2.4,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
     paddingBottom: 22.4,
+  },
+  brand: {
+    flex: 1,
+    paddingHorizontal: 2.4,
   },
   brandTitle: {
     fontFamily: fonts.display,
@@ -218,5 +264,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 16,
     color: colors.brandMuted,
+  },
+  settingsBtn: {
+    marginTop: 8,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(242, 247, 244, 0.12)",
+  },
+  settingsBtnPressed: {
+    opacity: 0.7,
   },
 });

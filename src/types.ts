@@ -44,6 +44,10 @@ export type DiaperChange = {
   messy: boolean;
 };
 
+export type PanelId = "feed" | "medicine" | "diaper" | "interval";
+
+export type VisiblePanels = Record<PanelId, boolean>;
+
 export type AppState = {
   lastBreast: BreastSide | null;
   activeSession: ActiveSession | null;
@@ -53,4 +57,5 @@ export type AppState = {
   feedIntervalHours: number;
   medicines: Medicine[];
   diapers: DiaperChange[];
+  visiblePanels: VisiblePanels;
 };

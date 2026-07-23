@@ -4,6 +4,8 @@ import type {
   BreastSide,
   FeedSegment,
   FeedSession,
+  PanelId,
+  VisiblePanels,
 } from "./types";
 import { parseDiapers } from "./diaper";
 import { parseMedicines } from "./medicine";
@@ -15,6 +17,17 @@ export const DEFAULT_FEED_INTERVAL_HOURS = 3;
 export const MIN_FEED_INTERVAL_HOURS = 1;
 export const MAX_FEED_INTERVAL_HOURS = 6;
 
+const PANEL_IDS: PanelId[] = ["feed", "medicine", "diaper", "interval"];
+
+export function defaultVisiblePanels(): VisiblePanels {
+  return {
+    feed: true,
+    medicine: true,
+    diaper: true,
+    interval: true,
+  };
+}
+
 export function defaultState(): AppState {
   return {
     lastBreast: null,
@@ -24,7 +37,20 @@ export function defaultState(): AppState {
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
     medicines: [],
     diapers: [],
+    visiblePanels: defaultVisiblePanels(),
   };
+}
+
+function parseVisiblePanels(value: unknown): VisiblePanels {
+  const base = defaultVisiblePanels();
+  if (!value || typeof value !== "object") return base;
+  const data = value as Record<string, unknown>;
+  for (const id of PANEL_IDS) {
+    if (typeof data[id] === "boolean") {
+      base[id] = data[id];
+    }
+  }
+  return base;
 }
 
 function isBreastSide(value: unknown): value is BreastSide {
@@ -185,6 +211,10 @@ function normalize(raw: unknown): AppState {
 
   if (data.diapers !== undefined) {
     base.diapers = parseDiapers(data.diapers);
+  }
+
+  if (data.visiblePanels !== undefined) {
+    base.visiblePanels = parseVisiblePanels(data.visiblePanels);
   }
 
   return base;

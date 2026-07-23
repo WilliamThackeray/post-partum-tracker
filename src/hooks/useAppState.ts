@@ -11,8 +11,13 @@ import {
   stopSession,
 } from "../feed";
 import { addMedicine, parseMedicines, removeMedicine, takeMedicine } from "../medicine";
-import { defaultState, loadState, saveState } from "../storage";
-import type { AppState, BreastSide, DiaperKind } from "../types";
+import {
+  defaultState,
+  defaultVisiblePanels,
+  loadState,
+  saveState,
+} from "../storage";
+import type { AppState, BreastSide, DiaperKind, PanelId } from "../types";
 
 export type UseAppStateResult = {
   ready: boolean;
@@ -28,6 +33,7 @@ export type UseAppStateResult = {
   deleteLoggedDiaper: (id: string) => void;
   intervalDown: () => void;
   intervalUp: () => void;
+  setPanelVisible: (id: PanelId, visible: boolean) => void;
 };
 
 function coerceState(raw: AppState): AppState {
@@ -37,6 +43,10 @@ function coerceState(raw: AppState): AppState {
       ? raw.medicines
       : parseMedicines(raw.medicines),
     diapers: Array.isArray(raw.diapers) ? raw.diapers : parseDiapers(raw.diapers),
+    visiblePanels: {
+      ...defaultVisiblePanels(),
+      ...(raw.visiblePanels ?? {}),
+    },
   };
 }
 
@@ -150,6 +160,17 @@ export function useAppState(): UseAppStateResult {
     void persist(setFeedIntervalHours(state, state.feedIntervalHours + 0.5));
   }, [persist, state]);
 
+  const setPanelVisible = useCallback(
+    (id: PanelId, visible: boolean) => {
+      if (!state) return;
+      void persist({
+        ...state,
+        visiblePanels: { ...state.visiblePanels, [id]: visible },
+      });
+    },
+    [persist, state],
+  );
+
   const activeStartedAt = state?.activeSession?.activeSegment?.startedAt;
   const timerLabel =
     activeStartedAt != null
@@ -170,5 +191,6 @@ export function useAppState(): UseAppStateResult {
     deleteLoggedDiaper,
     intervalDown,
     intervalUp,
+    setPanelVisible,
   };
 }
