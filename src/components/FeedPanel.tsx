@@ -1,20 +1,17 @@
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import {
-  formatDuration,
   isFeedOverdue,
   lastFeedStartedAt,
   nextFeedAt,
 } from "../feed";
-import { formatDateTime, formatTime } from "../medicine";
+import { formatTime } from "../medicine";
 import { colors, fonts, radius } from "../theme";
 import { panelShadow } from "../shadow";
-import type { AppState, BreastSide, FeedEntry } from "../types";
+import type { AppState, BreastSide } from "../types";
+import { FeedLogList } from "./FeedLogList";
+
+/** How many recent feeds to show on the home card before "See more". */
+export const FEED_PREVIEW_LIMIT = 5;
 
 type FeedPanelProps = {
   state: AppState;
@@ -24,36 +21,8 @@ type FeedPanelProps = {
   onMarkSchedule: () => void;
   onStartTimer: () => void;
   onEndTimer: () => void;
+  onSeeMoreFeeds: () => void;
 };
-
-function FeedHistory({ feeds }: { feeds: FeedEntry[] }) {
-  if (feeds.length === 0) {
-    return <Text style={styles.emptyHistory}>No feeds logged yet.</Text>;
-  }
-
-  return (
-    <ScrollView
-      style={styles.history}
-      nestedScrollEnabled
-      showsVerticalScrollIndicator={false}
-    >
-      {feeds.map((feed) => (
-        <View key={feed.id} style={styles.historyRow}>
-          <Text style={styles.historyLeft}>
-            <Text style={styles.historySide}>{feed.side}</Text>
-            <Text style={styles.historyMuted}>
-              {" "}
-              · {formatDateTime(feed.endedAt)}
-            </Text>
-          </Text>
-          <Text style={styles.historyDuration}>
-            {formatDuration(feed.durationMs)}
-          </Text>
-        </View>
-      ))}
-    </ScrollView>
-  );
-}
 
 export function FeedPanel({
   state,
@@ -63,6 +32,7 @@ export function FeedPanel({
   onMarkSchedule,
   onStartTimer,
   onEndTimer,
+  onSeeMoreFeeds,
 }: FeedPanelProps) {
   const feeding = Boolean(state.activeFeed);
   const last = lastFeedStartedAt(state);
@@ -73,6 +43,9 @@ export function FeedPanel({
       ? `${formatTime(next.toISOString())} · due now`
       : formatTime(next.toISOString())
     : "—";
+
+  const previewFeeds = state.feeds.slice(0, FEED_PREVIEW_LIMIT);
+  const hasMoreFeeds = state.feeds.length > FEED_PREVIEW_LIMIT;
 
   return (
     <View style={styles.panel}>
@@ -170,7 +143,21 @@ export function FeedPanel({
         </Pressable>
       </View>
 
-      <FeedHistory feeds={state.feeds} />
+      <View style={styles.history}>
+        <FeedLogList feeds={previewFeeds} />
+        {hasMoreFeeds ? (
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.seeMoreBtn,
+              pressed && styles.pressed,
+            ]}
+            onPress={onSeeMoreFeeds}
+          >
+            <Text style={styles.seeMoreText}>See more</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -302,40 +289,18 @@ const styles = StyleSheet.create({
   },
   history: {
     marginTop: 18.4,
-    maxHeight: 280,
   },
-  historyRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-    gap: 12,
-    paddingVertical: 8.8,
+  seeMoreBtn: {
+    marginTop: 4,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  historyLeft: {
-    flexShrink: 1,
-  },
-  historySide: {
+  seeMoreText: {
     fontFamily: fonts.bodySemiBold,
-    fontSize: 15.2,
-    color: colors.ink,
-    textTransform: "capitalize",
-  },
-  historyMuted: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.inkMuted,
-  },
-  historyDuration: {
-    fontFamily: fonts.body,
-    fontSize: 15.2,
-    color: colors.ink,
-  },
-  emptyHistory: {
-    marginTop: 13.6,
-    fontFamily: fonts.body,
-    fontSize: 15.2,
-    color: colors.inkMuted,
+    fontSize: 15.5,
+    color: colors.accentDeep,
   },
 });

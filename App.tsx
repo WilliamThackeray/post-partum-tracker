@@ -7,6 +7,7 @@ import {
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -16,15 +17,23 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { FeedLogsScreen } from "./src/components/FeedLogsScreen";
 import { FeedPanel } from "./src/components/FeedPanel";
 import { IntervalSettings } from "./src/components/IntervalSettings";
 import { MedicinePanel } from "./src/components/MedicinePanel";
-import { useAppState } from "./src/hooks/useAppState";
+import { useAppState, type UseAppStateResult } from "./src/hooks/useAppState";
 import { colors, fonts } from "./src/theme";
 
-function AppContent() {
+type Screen = "home" | "feedLogs";
+
+function HomeScreen({
+  app,
+  onSeeMoreFeeds,
+}: {
+  app: UseAppStateResult;
+  onSeeMoreFeeds: () => void;
+}) {
   const {
-    ready,
     state,
     selectedSide,
     timerLabel,
@@ -37,15 +46,7 @@ function AppContent() {
     removeMed,
     intervalDown,
     intervalUp,
-  } = useAppState();
-
-  if (!ready) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.brand} size="large" />
-      </View>
-    );
-  }
+  } = app;
 
   return (
     <ScrollView
@@ -68,6 +69,7 @@ function AppContent() {
         onMarkSchedule={markSchedule}
         onStartTimer={startTimer}
         onEndTimer={endTimer}
+        onSeeMoreFeeds={onSeeMoreFeeds}
       />
 
       <MedicinePanel
@@ -83,6 +85,32 @@ function AppContent() {
         onUp={intervalUp}
       />
     </ScrollView>
+  );
+}
+
+function AppContent() {
+  const [screen, setScreen] = useState<Screen>("home");
+  const app = useAppState();
+
+  if (!app.ready) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.brand} size="large" />
+      </View>
+    );
+  }
+
+  if (screen === "feedLogs") {
+    return (
+      <FeedLogsScreen
+        feeds={app.state.feeds}
+        onBack={() => setScreen("home")}
+      />
+    );
+  }
+
+  return (
+    <HomeScreen app={app} onSeeMoreFeeds={() => setScreen("feedLogs")} />
   );
 }
 
