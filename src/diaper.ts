@@ -1,5 +1,5 @@
 import { createId } from "./id";
-import type { AppState, DiaperChange, DiaperKind } from "./types";
+import type { DiaperChange, DiaperKind, KidState } from "./types";
 
 export const MAX_DIAPERS = 40;
 
@@ -15,7 +15,7 @@ export function formatDiaperKind(kind: DiaperKind): string {
   return "Wet";
 }
 
-export function logDiaper(state: AppState, kind: DiaperKind): AppState {
+export function logDiaper(kid: KidState, kind: DiaperKind): KidState {
   const entry: DiaperChange = {
     id: createId("diaper"),
     changedAt: new Date().toISOString(),
@@ -24,15 +24,15 @@ export function logDiaper(state: AppState, kind: DiaperKind): AppState {
   };
 
   return {
-    ...state,
-    diapers: [entry, ...state.diapers].slice(0, MAX_DIAPERS),
+    ...kid,
+    diapers: [entry, ...kid.diapers].slice(0, MAX_DIAPERS),
   };
 }
 
-export function deleteDiaper(state: AppState, id: string): AppState {
-  const diapers = state.diapers.filter((d) => d.id !== id);
-  if (diapers.length === state.diapers.length) return state;
-  return { ...state, diapers };
+export function deleteDiaper(kid: KidState, id: string): KidState {
+  const diapers = kid.diapers.filter((d) => d.id !== id);
+  if (diapers.length === kid.diapers.length) return kid;
+  return { ...kid, diapers };
 }
 
 export function parseDiapers(value: unknown): DiaperChange[] {

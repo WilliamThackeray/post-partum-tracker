@@ -7,14 +7,14 @@ import {
 import { formatTime } from "../medicine";
 import { colors, fonts, radius } from "../theme";
 import { panelShadow } from "../shadow";
-import type { AppState, BreastSide } from "../types";
+import type { BreastSide, KidState } from "../types";
 import { FeedLogList } from "./FeedLogList";
 
 /** How many recent feeds to show on the home card before "See more". */
 export const FEED_PREVIEW_LIMIT = 5;
 
 type FeedPanelProps = {
-  state: AppState;
+  state: KidState;
   timerLabel: string;
   onToggleSession: () => void;
   onToggleSide: (side: BreastSide) => void;

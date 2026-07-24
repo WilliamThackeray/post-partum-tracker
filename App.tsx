@@ -24,7 +24,9 @@ import { DiaperLogsScreen } from "./src/components/DiaperLogsScreen";
 import { DiaperPanel } from "./src/components/DiaperPanel";
 import { FeedLogsScreen } from "./src/components/FeedLogsScreen";
 import { FeedPanel } from "./src/components/FeedPanel";
+import { AddKidSheet } from "./src/components/AddKidSheet";
 import { IntervalSettings } from "./src/components/IntervalSettings";
+import { KidsDrawer } from "./src/components/KidsDrawer";
 import { MedicinePanel } from "./src/components/MedicinePanel";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { useAppState, type UseAppStateResult } from "./src/hooks/useAppState";
@@ -37,14 +39,17 @@ function HomeScreen({
   onSeeMoreFeeds,
   onSeeMoreDiapers,
   onOpenSettings,
+  onOpenKids,
 }: {
   app: UseAppStateResult;
   onSeeMoreFeeds: () => void;
   onSeeMoreDiapers: () => void;
   onOpenSettings: () => void;
+  onOpenKids: () => void;
 }) {
   const {
     state,
+    activeKid,
     timerLabel,
     toggleSession,
     toggleSide,
@@ -67,11 +72,21 @@ function HomeScreen({
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.brandRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Kids menu"
+          onPress={onOpenKids}
+          style={({ pressed }) => [
+            styles.menuBtn,
+            pressed && styles.chromeBtnPressed,
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons name="menu" size={24} color={colors.brand} />
+        </Pressable>
         <View style={styles.brand}>
           <Text style={styles.brandTitle}>Nest</Text>
-          <Text style={styles.brandTagline}>
-            Feeding & medicine, for the long nights.
-          </Text>
+          <Text style={styles.brandKid}>{activeKid.name}</Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -79,7 +94,7 @@ function HomeScreen({
           onPress={onOpenSettings}
           style={({ pressed }) => [
             styles.settingsBtn,
-            pressed && styles.settingsBtnPressed,
+            pressed && styles.chromeBtnPressed,
           ]}
           hitSlop={8}
         >
@@ -89,7 +104,7 @@ function HomeScreen({
 
       {visiblePanels.feed ? (
         <FeedPanel
-          state={state}
+          state={activeKid}
           timerLabel={timerLabel}
           onToggleSession={toggleSession}
           onToggleSide={toggleSide}
@@ -111,8 +126,8 @@ function HomeScreen({
 
       {visiblePanels.babyMedicine ? (
         <MedicinePanel
-          title="Baby's medicine"
-          medicines={state.babyMedicines}
+          title={`${activeKid.name}'s medicine`}
+          medicines={activeKid.babyMedicines}
           onTake={(id) => takeMed("baby", id)}
           onUndoTake={(id) => undoTakeMed("baby", id)}
           onAdd={(name, hours) => addMed("baby", name, hours)}
@@ -122,7 +137,7 @@ function HomeScreen({
 
       {visiblePanels.diaper ? (
         <DiaperPanel
-          diapers={state.diapers}
+          diapers={activeKid.diapers}
           onLog={logDiaperChange}
           onDelete={deleteLoggedDiaper}
           onSeeMoreDiapers={onSeeMoreDiapers}
@@ -131,7 +146,7 @@ function HomeScreen({
 
       {visiblePanels.interval ? (
         <IntervalSettings
-          intervalHours={state.feedIntervalHours}
+          intervalHours={activeKid.feedIntervalHours}
           onDown={intervalDown}
           onUp={intervalUp}
         />
@@ -142,6 +157,8 @@ function HomeScreen({
 
 function AppContent() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [kidsOpen, setKidsOpen] = useState(false);
+  const [addKidOpen, setAddKidOpen] = useState(false);
   const app = useAppState();
 
   if (!app.ready) {
@@ -155,7 +172,7 @@ function AppContent() {
   if (screen === "feedLogs") {
     return (
       <FeedLogsScreen
-        feeds={app.state.feeds}
+        feeds={app.activeKid.feeds}
         onBack={() => setScreen("home")}
         onDeleteFeed={app.deleteLoggedFeed}
       />
@@ -165,7 +182,7 @@ function AppContent() {
   if (screen === "diaperLogs") {
     return (
       <DiaperLogsScreen
-        diapers={app.state.diapers}
+        diapers={app.activeKid.diapers}
         onBack={() => setScreen("home")}
         onDeleteDiaper={app.deleteLoggedDiaper}
       />
@@ -183,12 +200,32 @@ function AppContent() {
   }
 
   return (
-    <HomeScreen
-      app={app}
-      onSeeMoreFeeds={() => setScreen("feedLogs")}
-      onSeeMoreDiapers={() => setScreen("diaperLogs")}
-      onOpenSettings={() => setScreen("settings")}
-    />
+    <>
+      <HomeScreen
+        app={app}
+        onSeeMoreFeeds={() => setScreen("feedLogs")}
+        onSeeMoreDiapers={() => setScreen("diaperLogs")}
+        onOpenSettings={() => setScreen("settings")}
+        onOpenKids={() => setKidsOpen(true)}
+      />
+      <KidsDrawer
+        visible={kidsOpen}
+        kids={app.state.kids}
+        activeKidId={app.state.activeKidId}
+        onClose={() => setKidsOpen(false)}
+        onSelectKid={app.selectKid}
+        onRequestAddKid={() => {
+          setKidsOpen(false);
+          setAddKidOpen(true);
+        }}
+        onRemoveKid={app.removeKid}
+      />
+      <AddKidSheet
+        visible={addKidOpen}
+        onClose={() => setAddKidOpen(false)}
+        onAdd={app.addKid}
+      />
+    </>
   );
 }
 
@@ -259,7 +296,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
     paddingBottom: 22.4,
   },
   brand: {
@@ -273,11 +310,20 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
     lineHeight: Platform.OS === "web" ? 52 : 48,
   },
-  brandTagline: {
-    marginTop: 7.2,
-    fontFamily: fonts.body,
+  brandKid: {
+    marginTop: 4,
+    fontFamily: fonts.bodyMedium,
     fontSize: 16,
     color: colors.brandMuted,
+  },
+  menuBtn: {
+    marginTop: 8,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(242, 247, 244, 0.12)",
   },
   settingsBtn: {
     marginTop: 8,
@@ -288,7 +334,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "rgba(242, 247, 244, 0.12)",
   },
-  settingsBtnPressed: {
+  chromeBtnPressed: {
     opacity: 0.7,
   },
 });

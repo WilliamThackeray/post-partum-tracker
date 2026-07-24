@@ -11,22 +11,30 @@ import {
   stopSession,
 } from "../feed";
 import {
+  addBabyMedicine,
   addMedicine,
   parseMedicines,
+  removeBabyMedicine,
   removeMedicine,
+  takeBabyMedicine,
   takeMedicine,
+  undoTakeBabyMedicine,
   undoTakeMedicine,
 } from "../medicine";
 import {
+  defaultKidState,
   defaultState,
   defaultVisiblePanels,
+  getActiveKid,
   loadState,
   saveState,
+  updateActiveKid,
 } from "../storage";
 import type {
   AppState,
   BreastSide,
   DiaperKind,
+  KidState,
   MedicineScope,
   PanelId,
 } from "../types";
@@ -34,6 +42,7 @@ import type {
 export type UseAppStateResult = {
   ready: boolean;
   state: AppState;
+  activeKid: KidState;
   timerLabel: string;
   toggleSession: () => void;
   toggleSide: (side: BreastSide) => void;
@@ -47,18 +56,46 @@ export type UseAppStateResult = {
   intervalDown: () => void;
   intervalUp: () => void;
   setPanelVisible: (id: PanelId, visible: boolean) => void;
+  selectKid: (id: string) => void;
+  addKid: (name: string) => void;
+  removeKid: (id: string) => void;
 };
 
-function coerceState(raw: AppState): AppState {
+function coerceKid(kid: KidState): KidState {
   return {
-    ...raw,
-    motherMedicines: parseMedicines(raw.motherMedicines),
-    babyMedicines: parseMedicines(raw.babyMedicines),
-    diapers: Array.isArray(raw.diapers) ? raw.diapers : parseDiapers(raw.diapers),
-    visiblePanels: {
-      ...defaultVisiblePanels(),
-      ...(raw.visiblePanels ?? {}),
-    },
+    ...kid,
+    babyMedicines: parseMedicines(kid.babyMedicines),
+    diapers: Array.isArray(kid.diapers) ? kid.diapers : parseDiapers(kid.diapers),
+  };
+}
+
+function coerceState(raw: AppState): AppState {
+  const kids = raw.kids.map(coerceKid);
+  const visiblePanels = {
+    ...defaultVisiblePanels(),
+    ...(raw.visiblePanels ?? {}),
+  };
+  const motherMedicines = parseMedicines(raw.motherMedicines);
+
+  if (kids.length === 0) {
+    const kid = defaultKidState();
+    return {
+      kids: [kid],
+      activeKidId: kid.id,
+      motherMedicines,
+      visiblePanels,
+    };
+  }
+
+  const activeKidId = kids.some((k) => k.id === raw.activeKidId)
+    ? raw.activeKidId
+    : kids[0].id;
+
+  return {
+    kids,
+    activeKidId,
+    motherMedicines,
+    visiblePanels,
   };
 }
 
@@ -87,29 +124,35 @@ export function useAppState(): UseAppStateResult {
     await saveState(coerced);
   }, []);
 
+  const activeKid = state ? getActiveKid(state) : defaultKidState();
+
   useEffect(() => {
-    if (!state?.activeSession?.activeSegment) return;
+    if (!activeKid.activeSession?.activeSegment) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [state?.activeSession?.activeSegment]);
+  }, [activeKid.activeSession?.activeSegment]);
 
   const toggleSession = useCallback(() => {
     if (!state) return;
-    if (state.activeSession) {
-      void persist(stopSession(state));
-    } else {
-      void persist(startSession(state));
-    }
+    void persist(
+      updateActiveKid(state, (kid) =>
+        kid.activeSession ? stopSession(kid) : startSession(kid),
+      ),
+    );
   }, [persist, state]);
 
   const toggleSide = useCallback(
     (side: BreastSide) => {
-      if (!state?.activeSession) return;
-      if (state.activeSession.activeSegment?.side === side) {
-        void persist(endSide(state));
-      } else {
-        void persist(startSide(state, side));
-      }
+      if (!state) return;
+      const kid = getActiveKid(state);
+      if (!kid.activeSession) return;
+      void persist(
+        updateActiveKid(state, (k) =>
+          k.activeSession?.activeSegment?.side === side
+            ? endSide(k)
+            : startSide(k, side),
+        ),
+      );
     },
     [persist, state],
   );
@@ -117,7 +160,7 @@ export function useAppState(): UseAppStateResult {
   const deleteLoggedFeed = useCallback(
     (id: string) => {
       if (!state) return;
-      void persist(deleteFeed(state, id));
+      void persist(updateActiveKid(state, (kid) => deleteFeed(kid, id)));
     },
     [persist, state],
   );
@@ -125,7 +168,11 @@ export function useAppState(): UseAppStateResult {
   const takeMed = useCallback(
     (scope: MedicineScope, id: string) => {
       if (!state) return;
-      void persist(takeMedicine(state, scope, id));
+      if (scope === "mother") {
+        void persist(takeMedicine(state, "mother", id));
+      } else {
+        void persist(updateActiveKid(state, (kid) => takeBabyMedicine(kid, id)));
+      }
     },
     [persist, state],
   );
@@ -133,7 +180,13 @@ export function useAppState(): UseAppStateResult {
   const undoTakeMed = useCallback(
     (scope: MedicineScope, id: string) => {
       if (!state) return;
-      void persist(undoTakeMedicine(state, scope, id));
+      if (scope === "mother") {
+        void persist(undoTakeMedicine(state, "mother", id));
+      } else {
+        void persist(
+          updateActiveKid(state, (kid) => undoTakeBabyMedicine(kid, id)),
+        );
+      }
     },
     [persist, state],
   );
@@ -141,7 +194,15 @@ export function useAppState(): UseAppStateResult {
   const addMed = useCallback(
     (scope: MedicineScope, name: string, intervalHours: number) => {
       if (!state) return;
-      void persist(addMedicine(state, scope, name, intervalHours));
+      if (scope === "mother") {
+        void persist(addMedicine(state, "mother", name, intervalHours));
+      } else {
+        void persist(
+          updateActiveKid(state, (kid) =>
+            addBabyMedicine(kid, name, intervalHours),
+          ),
+        );
+      }
     },
     [persist, state],
   );
@@ -149,7 +210,13 @@ export function useAppState(): UseAppStateResult {
   const removeMed = useCallback(
     (scope: MedicineScope, id: string) => {
       if (!state) return;
-      void persist(removeMedicine(state, scope, id));
+      if (scope === "mother") {
+        void persist(removeMedicine(state, "mother", id));
+      } else {
+        void persist(
+          updateActiveKid(state, (kid) => removeBabyMedicine(kid, id)),
+        );
+      }
     },
     [persist, state],
   );
@@ -157,7 +224,7 @@ export function useAppState(): UseAppStateResult {
   const logDiaperChange = useCallback(
     (kind: DiaperKind) => {
       if (!state) return;
-      void persist(logDiaper(state, kind));
+      void persist(updateActiveKid(state, (kid) => logDiaper(kid, kind)));
     },
     [persist, state],
   );
@@ -165,19 +232,27 @@ export function useAppState(): UseAppStateResult {
   const deleteLoggedDiaper = useCallback(
     (id: string) => {
       if (!state) return;
-      void persist(deleteDiaper(state, id));
+      void persist(updateActiveKid(state, (kid) => deleteDiaper(kid, id)));
     },
     [persist, state],
   );
 
   const intervalDown = useCallback(() => {
     if (!state) return;
-    void persist(setFeedIntervalHours(state, state.feedIntervalHours - 0.5));
+    void persist(
+      updateActiveKid(state, (kid) =>
+        setFeedIntervalHours(kid, kid.feedIntervalHours - 0.5),
+      ),
+    );
   }, [persist, state]);
 
   const intervalUp = useCallback(() => {
     if (!state) return;
-    void persist(setFeedIntervalHours(state, state.feedIntervalHours + 0.5));
+    void persist(
+      updateActiveKid(state, (kid) =>
+        setFeedIntervalHours(kid, kid.feedIntervalHours + 0.5),
+      ),
+    );
   }, [persist, state]);
 
   const setPanelVisible = useCallback(
@@ -191,15 +266,57 @@ export function useAppState(): UseAppStateResult {
     [persist, state],
   );
 
-  const activeStartedAt = state?.activeSession?.activeSegment?.startedAt;
+  const selectKid = useCallback(
+    (id: string) => {
+      if (!state) return;
+      if (!state.kids.some((k) => k.id === id)) return;
+      void persist({ ...state, activeKidId: id });
+    },
+    [persist, state],
+  );
+
+  const addKid = useCallback(
+    (name: string) => {
+      if (!state) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const kid = defaultKidState(trimmed);
+      void persist({
+        ...state,
+        kids: [...state.kids, kid],
+        activeKidId: kid.id,
+      });
+    },
+    [persist, state],
+  );
+
+  const removeKid = useCallback(
+    (id: string) => {
+      if (!state) return;
+      if (state.kids.length <= 1) return;
+      const kids = state.kids.filter((k) => k.id !== id);
+      if (kids.length === state.kids.length) return;
+      const activeKidId =
+        state.activeKidId === id
+          ? kids[0].id
+          : state.activeKidId;
+      void persist({ ...state, kids, activeKidId });
+    },
+    [persist, state],
+  );
+
+  const activeStartedAt = activeKid.activeSession?.activeSegment?.startedAt;
   const timerLabel =
     activeStartedAt != null
       ? formatDuration(elapsedMs(activeStartedAt, now))
       : "00:00";
 
+  const resolved = state ?? defaultState();
+
   return {
     ready,
-    state: state ?? defaultState(),
+    state: resolved,
+    activeKid: getActiveKid(resolved),
     timerLabel,
     toggleSession,
     toggleSide,
@@ -213,5 +330,8 @@ export function useAppState(): UseAppStateResult {
     intervalDown,
     intervalUp,
     setPanelVisible,
+    selectKid,
+    addKid,
+    removeKid,
   };
 }

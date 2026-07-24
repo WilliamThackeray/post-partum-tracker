@@ -6,10 +6,10 @@ import {
 } from "./storage";
 import type {
   ActiveSession,
-  AppState,
   BreastSide,
   FeedSegment,
   FeedSession,
+  KidState,
 } from "./types";
 
 function closeActiveSegment(
@@ -39,11 +39,11 @@ function sessionDurationMs(segments: FeedSegment[]): number {
 }
 
 /** Begin a feeding session and stamp the next-feed schedule. */
-export function startSession(state: AppState): AppState {
-  if (state.activeSession) return state;
+export function startSession(kid: KidState): KidState {
+  if (kid.activeSession) return kid;
   const startedAt = new Date().toISOString();
   return {
-    ...state,
+    ...kid,
     scheduleStartedAt: startedAt,
     activeSession: {
       startedAt,
@@ -54,11 +54,11 @@ export function startSession(state: AppState): AppState {
 }
 
 /** End the session, finalize any open side, and log the total. */
-export function stopSession(state: AppState): AppState {
-  if (!state.activeSession) return state;
+export function stopSession(kid: KidState): KidState {
+  if (!kid.activeSession) return kid;
 
   const endedAt = new Date();
-  const closed = closeActiveSegment(state.activeSession, endedAt);
+  const closed = closeActiveSegment(kid.activeSession, endedAt);
   const lastSegment = closed.segments[closed.segments.length - 1];
   const entry: FeedSession = {
     id: createId("feed"),
@@ -69,26 +69,26 @@ export function stopSession(state: AppState): AppState {
   };
 
   return {
-    ...state,
-    lastBreast: lastSegment?.side ?? state.lastBreast,
+    ...kid,
+    lastBreast: lastSegment?.side ?? kid.lastBreast,
     activeSession: null,
-    feeds: [entry, ...state.feeds].slice(0, MAX_FEEDS),
+    feeds: [entry, ...kid.feeds].slice(0, MAX_FEEDS),
   };
 }
 
 /** Start timing a side. Ends the other side first if it was running. */
-export function startSide(state: AppState, side: BreastSide): AppState {
-  if (!state.activeSession) return state;
+export function startSide(kid: KidState, side: BreastSide): KidState {
+  if (!kid.activeSession) return kid;
 
-  let session = state.activeSession;
-  if (session.activeSegment?.side === side) return state;
+  let session = kid.activeSession;
+  if (session.activeSegment?.side === side) return kid;
 
   if (session.activeSegment) {
     session = closeActiveSegment(session);
   }
 
   return {
-    ...state,
+    ...kid,
     activeSession: {
       ...session,
       activeSegment: {
@@ -100,59 +100,59 @@ export function startSide(state: AppState, side: BreastSide): AppState {
 }
 
 /** Stop timing the active side without ending the session. */
-export function endSide(state: AppState): AppState {
-  if (!state.activeSession?.activeSegment) return state;
+export function endSide(kid: KidState): KidState {
+  if (!kid.activeSession?.activeSegment) return kid;
   return {
-    ...state,
-    lastBreast: state.activeSession.activeSegment.side,
-    activeSession: closeActiveSegment(state.activeSession),
+    ...kid,
+    lastBreast: kid.activeSession.activeSegment.side,
+    activeSession: closeActiveSegment(kid.activeSession),
   };
 }
 
 /** Remove a logged feed and refresh next-feed schedule from remaining history. */
-export function deleteFeed(state: AppState, id: string): AppState {
-  const feeds = state.feeds.filter((feed) => feed.id !== id);
-  if (feeds.length === state.feeds.length) return state;
+export function deleteFeed(kid: KidState, id: string): KidState {
+  const feeds = kid.feeds.filter((feed) => feed.id !== id);
+  if (feeds.length === kid.feeds.length) return kid;
 
   // Keep active session schedule; otherwise base next feed on newest remaining log.
-  const scheduleStartedAt = state.activeSession
-    ? state.scheduleStartedAt
+  const scheduleStartedAt = kid.activeSession
+    ? kid.scheduleStartedAt
     : (feeds[0]?.startedAt ?? null);
 
   return {
-    ...state,
+    ...kid,
     feeds,
     scheduleStartedAt,
     lastBreast:
       feeds.length === 0
         ? null
         : (feeds[0]?.segments[feeds[0].segments.length - 1]?.side ??
-          state.lastBreast),
+          kid.lastBreast),
   };
 }
 
-export function setFeedIntervalHours(state: AppState, hours: number): AppState {
+export function setFeedIntervalHours(kid: KidState, hours: number): KidState {
   const clamped = Math.min(
     MAX_FEED_INTERVAL_HOURS,
     Math.max(MIN_FEED_INTERVAL_HOURS, hours),
   );
-  return { ...state, feedIntervalHours: clamped };
+  return { ...kid, feedIntervalHours: clamped };
 }
 
-export function lastFeedStartedAt(state: AppState): string | null {
-  return state.scheduleStartedAt;
+export function lastFeedStartedAt(kid: KidState): string | null {
+  return kid.scheduleStartedAt;
 }
 
-export function nextFeedAt(state: AppState): Date | null {
-  const last = lastFeedStartedAt(state);
+export function nextFeedAt(kid: KidState): Date | null {
+  const last = lastFeedStartedAt(kid);
   if (!last) return null;
   return new Date(
-    new Date(last).getTime() + state.feedIntervalHours * 60 * 60 * 1000,
+    new Date(last).getTime() + kid.feedIntervalHours * 60 * 60 * 1000,
   );
 }
 
-export function isFeedOverdue(state: AppState, now = Date.now()): boolean {
-  const next = nextFeedAt(state);
+export function isFeedOverdue(kid: KidState, now = Date.now()): boolean {
+  const next = nextFeedAt(kid);
   if (!next) return false;
   return next.getTime() <= now;
 }

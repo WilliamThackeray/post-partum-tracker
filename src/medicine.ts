@@ -1,5 +1,5 @@
 import { createId } from "./id";
-import type { AppState, Medicine, MedicineScope } from "./types";
+import type { AppState, KidState, Medicine, MedicineScope } from "./types";
 
 export const DEFAULT_MEDICINE_INTERVAL_HOURS = 8;
 export const MIN_MEDICINE_INTERVAL_HOURS = 0.5;
@@ -11,12 +11,6 @@ const LEGACY_MEDICINE_LABELS: Record<string, string> = {
   tylenol: "Tylenol",
 };
 
-function medicinesKey(
-  scope: MedicineScope,
-): "motherMedicines" | "babyMedicines" {
-  return scope === "mother" ? "motherMedicines" : "babyMedicines";
-}
-
 export function clampMedicineIntervalHours(hours: number): number {
   if (!Number.isFinite(hours)) return DEFAULT_MEDICINE_INTERVAL_HOURS;
   return Math.min(
@@ -25,52 +19,41 @@ export function clampMedicineIntervalHours(hours: number): number {
   );
 }
 
-export function takeMedicine(
-  state: AppState,
-  scope: MedicineScope,
+function mapMedicine(
+  medicines: Medicine[],
   id: string,
-): AppState {
-  const key = medicinesKey(scope);
+  update: (med: Medicine) => Medicine,
+): Medicine[] {
+  return medicines.map((med) => (med.id === id ? update(med) : med));
+}
+
+function takeInList(medicines: Medicine[], id: string): Medicine[] {
   const takenAt = new Date().toISOString();
-  return {
-    ...state,
-    [key]: state[key].map((med) => {
-      if (med.id !== id) return med;
-      const takenAtLog = [takenAt, ...med.takenAtLog].slice(0, MAX_MEDICINE_TAKES);
-      return { ...med, lastTakenAt: takenAt, takenAtLog };
-    }),
-  };
+  return mapMedicine(medicines, id, (med) => {
+    const takenAtLog = [takenAt, ...med.takenAtLog].slice(0, MAX_MEDICINE_TAKES);
+    return { ...med, lastTakenAt: takenAt, takenAtLog };
+  });
 }
 
-export function undoTakeMedicine(
-  state: AppState,
-  scope: MedicineScope,
-  id: string,
-): AppState {
-  const key = medicinesKey(scope);
-  return {
-    ...state,
-    [key]: state[key].map((med) => {
-      if (med.id !== id) return med;
-      if (med.takenAtLog.length === 0 && med.lastTakenAt == null) return med;
-      const takenAtLog = med.takenAtLog.length > 0 ? med.takenAtLog.slice(1) : [];
-      return {
-        ...med,
-        takenAtLog,
-        lastTakenAt: takenAtLog[0] ?? null,
-      };
-    }),
-  };
+function undoTakeInList(medicines: Medicine[], id: string): Medicine[] {
+  return mapMedicine(medicines, id, (med) => {
+    if (med.takenAtLog.length === 0 && med.lastTakenAt == null) return med;
+    const takenAtLog = med.takenAtLog.length > 0 ? med.takenAtLog.slice(1) : [];
+    return {
+      ...med,
+      takenAtLog,
+      lastTakenAt: takenAtLog[0] ?? null,
+    };
+  });
 }
 
-export function addMedicine(
-  state: AppState,
-  scope: MedicineScope,
+function addInList(
+  medicines: Medicine[],
   name: string,
   intervalHours: number,
-): AppState {
+): Medicine[] {
   const trimmed = name.trim();
-  if (!trimmed) return state;
+  if (!trimmed) return medicines;
 
   const medicine: Medicine = {
     id: createId("med"),
@@ -80,10 +63,80 @@ export function addMedicine(
     takenAtLog: [],
   };
 
-  const key = medicinesKey(scope);
+  return [...medicines, medicine];
+}
+
+function removeInList(medicines: Medicine[], id: string): Medicine[] {
+  return medicines.filter((med) => med.id !== id);
+}
+
+/** Mother medicines are shared on AppState. Baby medicines live on KidState. */
+export function takeMedicine(
+  state: AppState,
+  scope: MedicineScope,
+  id: string,
+): AppState {
+  if (scope === "mother") {
+    return {
+      ...state,
+      motherMedicines: takeInList(state.motherMedicines, id),
+    };
+  }
+  // Baby scope must be applied via takeBabyMedicine on the active kid.
+  return state;
+}
+
+export function takeBabyMedicine(kid: KidState, id: string): KidState {
   return {
-    ...state,
-    [key]: [...state[key], medicine],
+    ...kid,
+    babyMedicines: takeInList(kid.babyMedicines, id),
+  };
+}
+
+export function undoTakeMedicine(
+  state: AppState,
+  scope: MedicineScope,
+  id: string,
+): AppState {
+  if (scope === "mother") {
+    return {
+      ...state,
+      motherMedicines: undoTakeInList(state.motherMedicines, id),
+    };
+  }
+  return state;
+}
+
+export function undoTakeBabyMedicine(kid: KidState, id: string): KidState {
+  return {
+    ...kid,
+    babyMedicines: undoTakeInList(kid.babyMedicines, id),
+  };
+}
+
+export function addMedicine(
+  state: AppState,
+  scope: MedicineScope,
+  name: string,
+  intervalHours: number,
+): AppState {
+  if (scope === "mother") {
+    return {
+      ...state,
+      motherMedicines: addInList(state.motherMedicines, name, intervalHours),
+    };
+  }
+  return state;
+}
+
+export function addBabyMedicine(
+  kid: KidState,
+  name: string,
+  intervalHours: number,
+): KidState {
+  return {
+    ...kid,
+    babyMedicines: addInList(kid.babyMedicines, name, intervalHours),
   };
 }
 
@@ -92,10 +145,19 @@ export function removeMedicine(
   scope: MedicineScope,
   id: string,
 ): AppState {
-  const key = medicinesKey(scope);
+  if (scope === "mother") {
+    return {
+      ...state,
+      motherMedicines: removeInList(state.motherMedicines, id),
+    };
+  }
+  return state;
+}
+
+export function removeBabyMedicine(kid: KidState, id: string): KidState {
   return {
-    ...state,
-    [key]: state[key].filter((med) => med.id !== id),
+    ...kid,
+    babyMedicines: removeInList(kid.babyMedicines, id),
   };
 }
 

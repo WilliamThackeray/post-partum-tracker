@@ -4,10 +4,12 @@ import type {
   BreastSide,
   FeedSegment,
   FeedSession,
+  KidState,
   PanelId,
   VisiblePanels,
 } from "./types";
 import { parseDiapers } from "./diaper";
+import { createId } from "./id";
 import { parseMedicines } from "./medicine";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -16,6 +18,7 @@ export const MAX_FEEDS = 20;
 export const DEFAULT_FEED_INTERVAL_HOURS = 3;
 export const MIN_FEED_INTERVAL_HOURS = 1;
 export const MAX_FEED_INTERVAL_HOURS = 6;
+export const DEFAULT_KID_NAME = "Baby";
 
 const PANEL_IDS: PanelId[] = [
   "feed",
@@ -35,16 +38,26 @@ export function defaultVisiblePanels(): VisiblePanels {
   };
 }
 
-export function defaultState(): AppState {
+export function defaultKidState(name = DEFAULT_KID_NAME): KidState {
   return {
+    id: createId("kid"),
+    name: name.trim() || DEFAULT_KID_NAME,
     lastBreast: null,
     activeSession: null,
     feeds: [],
     scheduleStartedAt: null,
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
-    motherMedicines: [],
     babyMedicines: [],
     diapers: [],
+  };
+}
+
+export function defaultState(): AppState {
+  const kid = defaultKidState();
+  return {
+    kids: [kid],
+    activeKidId: kid.id,
+    motherMedicines: [],
     visiblePanels: defaultVisiblePanels(),
   };
 }
@@ -171,25 +184,79 @@ function parseActiveSession(value: unknown): ActiveSession | null {
   return { startedAt: s.startedAt, segments, activeSegment };
 }
 
-function normalize(raw: unknown): AppState {
-  const base = defaultState();
-  if (!raw || typeof raw !== "object") return base;
+function parseFeedIntervalHours(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.min(
+      MAX_FEED_INTERVAL_HOURS,
+      Math.max(MIN_FEED_INTERVAL_HOURS, value),
+    );
+  }
+  return DEFAULT_FEED_INTERVAL_HOURS;
+}
 
-  const data = raw as Record<string, unknown>;
+function parseKidState(value: unknown): KidState | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as Record<string, unknown>;
+  if (typeof data.id !== "string" || !data.id) return null;
+
+  const name =
+    typeof data.name === "string" && data.name.trim()
+      ? data.name.trim()
+      : DEFAULT_KID_NAME;
+
+  const kid = defaultKidState(name);
+  kid.id = data.id;
 
   if (isBreastSide(data.lastBreast)) {
-    base.lastBreast = data.lastBreast;
-  } else {
-    base.lastBreast = null;
+    kid.lastBreast = data.lastBreast;
   }
 
   if (data.activeSession) {
-    base.activeSession = parseActiveSession(data.activeSession);
+    kid.activeSession = parseActiveSession(data.activeSession);
+  }
+
+  if (Array.isArray(data.feeds)) {
+    kid.feeds = data.feeds
+      .map(parseFeedSession)
+      .filter((f): f is FeedSession => f !== null)
+      .slice(0, MAX_FEEDS);
+  }
+
+  if (isIsoString(data.scheduleStartedAt)) {
+    kid.scheduleStartedAt = data.scheduleStartedAt;
+  } else if (kid.feeds[0]?.startedAt) {
+    kid.scheduleStartedAt = kid.feeds[0].startedAt;
+  } else if (kid.activeSession?.startedAt) {
+    kid.scheduleStartedAt = kid.activeSession.startedAt;
+  }
+
+  kid.feedIntervalHours = parseFeedIntervalHours(data.feedIntervalHours);
+
+  if (data.babyMedicines !== undefined) {
+    kid.babyMedicines = parseMedicines(data.babyMedicines);
+  }
+
+  if (data.diapers !== undefined) {
+    kid.diapers = parseDiapers(data.diapers);
+  }
+
+  return kid;
+}
+
+/** Build a kid from the pre-multi-kid flat AppState shape. */
+function kidFromLegacyFlat(data: Record<string, unknown>): KidState {
+  const kid = defaultKidState(DEFAULT_KID_NAME);
+
+  if (isBreastSide(data.lastBreast)) {
+    kid.lastBreast = data.lastBreast;
+  }
+
+  if (data.activeSession) {
+    kid.activeSession = parseActiveSession(data.activeSession);
   } else if (data.activeFeed && typeof data.activeFeed === "object") {
-    // Migrate legacy activeFeed → activeSession with one open side
     const af = data.activeFeed as Record<string, unknown>;
     if (isBreastSide(af.side) && isIsoString(af.startedAt)) {
-      base.activeSession = {
+      kid.activeSession = {
         startedAt: af.startedAt,
         segments: [],
         activeSegment: { side: af.side, startedAt: af.startedAt },
@@ -198,50 +265,85 @@ function normalize(raw: unknown): AppState {
   }
 
   if (Array.isArray(data.feeds)) {
-    base.feeds = data.feeds
+    kid.feeds = data.feeds
       .map(parseFeedSession)
       .filter((f): f is FeedSession => f !== null)
       .slice(0, MAX_FEEDS);
   }
 
   if (isIsoString(data.scheduleStartedAt)) {
-    base.scheduleStartedAt = data.scheduleStartedAt;
-  } else if (base.feeds[0]?.startedAt) {
-    base.scheduleStartedAt = base.feeds[0].startedAt;
-  } else if (base.activeSession?.startedAt) {
-    base.scheduleStartedAt = base.activeSession.startedAt;
+    kid.scheduleStartedAt = data.scheduleStartedAt;
+  } else if (kid.feeds[0]?.startedAt) {
+    kid.scheduleStartedAt = kid.feeds[0].startedAt;
+  } else if (kid.activeSession?.startedAt) {
+    kid.scheduleStartedAt = kid.activeSession.startedAt;
   }
 
-  if (
-    typeof data.feedIntervalHours === "number" &&
-    Number.isFinite(data.feedIntervalHours)
-  ) {
-    base.feedIntervalHours = Math.min(
-      MAX_FEED_INTERVAL_HOURS,
-      Math.max(MIN_FEED_INTERVAL_HOURS, data.feedIntervalHours),
-    );
-  }
-
-  if (data.motherMedicines !== undefined) {
-    base.motherMedicines = parseMedicines(data.motherMedicines);
-  } else if (data.medicines !== undefined) {
-    // Migrate legacy single medicines list → mother's medicines
-    base.motherMedicines = parseMedicines(data.medicines);
-  }
+  kid.feedIntervalHours = parseFeedIntervalHours(data.feedIntervalHours);
 
   if (data.babyMedicines !== undefined) {
-    base.babyMedicines = parseMedicines(data.babyMedicines);
+    kid.babyMedicines = parseMedicines(data.babyMedicines);
   }
 
   if (data.diapers !== undefined) {
-    base.diapers = parseDiapers(data.diapers);
+    kid.diapers = parseDiapers(data.diapers);
   }
 
-  if (data.visiblePanels !== undefined) {
-    base.visiblePanels = parseVisiblePanels(data.visiblePanels);
+  return kid;
+}
+
+function parseMotherMedicines(data: Record<string, unknown>) {
+  if (data.motherMedicines !== undefined) {
+    return parseMedicines(data.motherMedicines);
+  }
+  if (data.medicines !== undefined) {
+    // Migrate legacy single medicines list → mother's medicines
+    return parseMedicines(data.medicines);
+  }
+  return [];
+}
+
+function normalize(raw: unknown): AppState {
+  if (!raw || typeof raw !== "object") return defaultState();
+
+  const data = raw as Record<string, unknown>;
+
+  // Multi-kid shape
+  if (Array.isArray(data.kids)) {
+    const kids = data.kids
+      .map(parseKidState)
+      .filter((k): k is KidState => k !== null);
+
+    if (kids.length === 0) return defaultState();
+
+    const activeKidId =
+      typeof data.activeKidId === "string" &&
+      kids.some((k) => k.id === data.activeKidId)
+        ? data.activeKidId
+        : kids[0].id;
+
+    return {
+      kids,
+      activeKidId,
+      motherMedicines: parseMotherMedicines(data),
+      visiblePanels:
+        data.visiblePanels !== undefined
+          ? parseVisiblePanels(data.visiblePanels)
+          : defaultVisiblePanels(),
+    };
   }
 
-  return base;
+  // Legacy flat AppState → one kid named "Baby"
+  const kid = kidFromLegacyFlat(data);
+  return {
+    kids: [kid],
+    activeKidId: kid.id,
+    motherMedicines: parseMotherMedicines(data),
+    visiblePanels:
+      data.visiblePanels !== undefined
+        ? parseVisiblePanels(data.visiblePanels)
+        : defaultVisiblePanels(),
+  };
 }
 
 export async function loadState(): Promise<AppState> {
@@ -256,4 +358,27 @@ export async function loadState(): Promise<AppState> {
 
 export async function saveState(state: AppState): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+export function getActiveKid(state: AppState): KidState {
+  return (
+    state.kids.find((k) => k.id === state.activeKidId) ??
+    state.kids[0] ??
+    defaultKidState()
+  );
+}
+
+export function updateActiveKid(
+  state: AppState,
+  updater: (kid: KidState) => KidState,
+): AppState {
+  const activeId = state.activeKidId;
+  const kids = state.kids.map((kid) =>
+    kid.id === activeId ? updater(kid) : kid,
+  );
+  // If active id was missing, ensure we still have a valid active kid
+  const activeKidId = kids.some((k) => k.id === activeId)
+    ? activeId
+    : (kids[0]?.id ?? activeId);
+  return { ...state, kids, activeKidId };
 }

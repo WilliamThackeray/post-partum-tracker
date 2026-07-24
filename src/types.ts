@@ -57,15 +57,23 @@ export type PanelId =
 
 export type VisiblePanels = Record<PanelId, boolean>;
 
-export type AppState = {
+/** Per-kid baby tracking. Mother medicines live on AppState (shared). */
+export type KidState = {
+  id: string;
+  name: string;
   lastBreast: BreastSide | null;
   activeSession: ActiveSession | null;
   feeds: FeedSession[];
   /** When the current feeding cycle started (for last/next schedule). */
   scheduleStartedAt: string | null;
   feedIntervalHours: number;
-  motherMedicines: Medicine[];
   babyMedicines: Medicine[];
   diapers: DiaperChange[];
+};
+
+export type AppState = {
+  kids: KidState[];
+  activeKidId: string;
+  motherMedicines: Medicine[];
   visiblePanels: VisiblePanels;
 };
