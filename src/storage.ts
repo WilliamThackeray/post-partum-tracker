@@ -5,6 +5,7 @@ import type {
   FeedSegment,
   FeedSession,
   KidState,
+  NotificationSettings,
   PanelId,
   VisiblePanels,
 } from "./types";
@@ -38,6 +39,22 @@ export function defaultVisiblePanels(): VisiblePanels {
   };
 }
 
+export function defaultNotificationSettings(): NotificationSettings {
+  return {
+    feed: true,
+    medicine: true,
+  };
+}
+
+function parseNotificationSettings(value: unknown): NotificationSettings {
+  const base = defaultNotificationSettings();
+  if (!value || typeof value !== "object") return base;
+  const data = value as Record<string, unknown>;
+  if (typeof data.feed === "boolean") base.feed = data.feed;
+  if (typeof data.medicine === "boolean") base.medicine = data.medicine;
+  return base;
+}
+
 export function defaultKidState(name = DEFAULT_KID_NAME): KidState {
   return {
     id: createId("kid"),
@@ -59,6 +76,7 @@ export function defaultState(): AppState {
     activeKidId: kid.id,
     motherMedicines: [],
     visiblePanels: defaultVisiblePanels(),
+    notificationSettings: defaultNotificationSettings(),
   };
 }
 
@@ -330,6 +348,9 @@ function normalize(raw: unknown): AppState {
         data.visiblePanels !== undefined
           ? parseVisiblePanels(data.visiblePanels)
           : defaultVisiblePanels(),
+      notificationSettings: parseNotificationSettings(
+        data.notificationSettings,
+      ),
     };
   }
 
@@ -343,6 +364,9 @@ function normalize(raw: unknown): AppState {
       data.visiblePanels !== undefined
         ? parseVisiblePanels(data.visiblePanels)
         : defaultVisiblePanels(),
+    notificationSettings: parseNotificationSettings(
+      data.notificationSettings,
+    ),
   };
 }
 

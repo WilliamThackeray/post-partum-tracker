@@ -57,6 +57,11 @@ export type PanelId =
 
 export type VisiblePanels = Record<PanelId, boolean>;
 
+export type NotificationSettings = {
+  feed: boolean;
+  medicine: boolean;
+};
+
 /** Per-kid baby tracking. Mother medicines live on AppState (shared). */
 export type KidState = {
   id: string;
@@ -76,4 +81,5 @@ export type AppState = {
   activeKidId: string;
   motherMedicines: Medicine[];
   visiblePanels: VisiblePanels;
+  notificationSettings: NotificationSettings;
 };

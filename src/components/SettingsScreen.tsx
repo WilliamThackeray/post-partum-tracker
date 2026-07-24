@@ -12,7 +12,11 @@ import {
 import { BUG_REPORT_FORM_URL, FEEDBACK_FORM_URL } from "../feedback";
 import { panelShadow } from "../shadow";
 import { colors, fonts, radius } from "../theme";
-import type { PanelId, VisiblePanels } from "../types";
+import type {
+  NotificationSettings,
+  PanelId,
+  VisiblePanels,
+} from "../types";
 
 const PANEL_OPTIONS: { id: PanelId; label: string; hint: string }[] = [
   {
@@ -39,6 +43,23 @@ const PANEL_OPTIONS: { id: PanelId; label: string; hint: string }[] = [
     id: "interval",
     label: "Feeding interval",
     hint: "Set how long between feeds.",
+  },
+];
+
+const NOTIFICATION_OPTIONS: {
+  key: keyof NotificationSettings;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    key: "feed",
+    label: "Feeding alerts",
+    hint: "Notify when the next feed is due.",
+  },
+  {
+    key: "medicine",
+    label: "Medicine alerts",
+    hint: "Notify when a dose is due for mom or baby.",
   },
 ];
 
@@ -69,14 +90,21 @@ async function openFormUrl(url: string) {
 
 type SettingsScreenProps = {
   visiblePanels: VisiblePanels;
+  notificationSettings: NotificationSettings;
   onBack: () => void;
   onSetPanelVisible: (id: PanelId, visible: boolean) => void;
+  onSetNotificationEnabled: (
+    key: keyof NotificationSettings,
+    enabled: boolean,
+  ) => void;
 };
 
 export function SettingsScreen({
   visiblePanels,
+  notificationSettings,
   onBack,
   onSetPanelVisible,
+  onSetNotificationEnabled,
 }: SettingsScreenProps) {
   return (
     <View style={styles.root}>
@@ -90,7 +118,7 @@ export function SettingsScreen({
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
         <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>Panels, bugs, and feedback.</Text>
+        <Text style={styles.subtitle}>Panels, alerts, and feedback.</Text>
       </View>
 
       <ScrollView
@@ -126,7 +154,39 @@ export function SettingsScreen({
           ))}
         </View>
 
-        <View style={[styles.panel, styles.helpPanel]}>
+        <View style={[styles.panel, styles.sectionPanel]}>
+          <Text style={styles.sectionHeading}>Notifications</Text>
+          {NOTIFICATION_OPTIONS.map((option, index) => (
+            <View
+              key={option.key}
+              style={[
+                styles.row,
+                index < NOTIFICATION_OPTIONS.length - 1 && styles.rowBorder,
+              ]}
+            >
+              <View style={styles.rowText}>
+                <Text style={styles.rowLabel}>{option.label}</Text>
+                <Text style={styles.rowHint}>{option.hint}</Text>
+              </View>
+              <Switch
+                accessibilityLabel={option.label}
+                value={notificationSettings[option.key]}
+                onValueChange={(enabled) =>
+                  onSetNotificationEnabled(option.key, enabled)
+                }
+                trackColor={{ false: colors.border, true: colors.accentSoft }}
+                thumbColor={
+                  notificationSettings[option.key]
+                    ? colors.accent
+                    : colors.inkMuted
+                }
+                ios_backgroundColor={colors.border}
+              />
+            </View>
+          ))}
+        </View>
+
+        <View style={[styles.panel, styles.sectionPanel]}>
           <Text style={styles.sectionHeading}>Help</Text>
           {HELP_OPTIONS.map((option, index) => (
             <Pressable
@@ -206,7 +266,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     ...panelShadow,
   },
-  helpPanel: {
+  sectionPanel: {
     marginTop: 16,
   },
   sectionHeading: {

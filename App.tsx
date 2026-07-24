@@ -193,8 +193,10 @@ function AppContent() {
     return (
       <SettingsScreen
         visiblePanels={app.state.visiblePanels}
+        notificationSettings={app.state.notificationSettings}
         onBack={() => setScreen("home")}
         onSetPanelVisible={app.setPanelVisible}
+        onSetNotificationEnabled={app.setNotificationEnabled}
       />
     );
   }

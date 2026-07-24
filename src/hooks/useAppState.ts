@@ -21,8 +21,10 @@ import {
   undoTakeBabyMedicine,
   undoTakeMedicine,
 } from "../medicine";
+import { syncAlertsFromState } from "../notifications";
 import {
   defaultKidState,
+  defaultNotificationSettings,
   defaultState,
   defaultVisiblePanels,
   getActiveKid,
@@ -36,6 +38,7 @@ import type {
   DiaperKind,
   KidState,
   MedicineScope,
+  NotificationSettings,
   PanelId,
 } from "../types";
 
@@ -56,6 +59,10 @@ export type UseAppStateResult = {
   intervalDown: () => void;
   intervalUp: () => void;
   setPanelVisible: (id: PanelId, visible: boolean) => void;
+  setNotificationEnabled: (
+    key: keyof NotificationSettings,
+    enabled: boolean,
+  ) => void;
   selectKid: (id: string) => void;
   addKid: (name: string) => void;
   removeKid: (id: string) => void;
@@ -75,6 +82,10 @@ function coerceState(raw: AppState): AppState {
     ...defaultVisiblePanels(),
     ...(raw.visiblePanels ?? {}),
   };
+  const notificationSettings = {
+    ...defaultNotificationSettings(),
+    ...(raw.notificationSettings ?? {}),
+  };
   const motherMedicines = parseMedicines(raw.motherMedicines);
 
   if (kids.length === 0) {
@@ -84,6 +95,7 @@ function coerceState(raw: AppState): AppState {
       activeKidId: kid.id,
       motherMedicines,
       visiblePanels,
+      notificationSettings,
     };
   }
 
@@ -96,6 +108,7 @@ function coerceState(raw: AppState): AppState {
     activeKidId,
     motherMedicines,
     visiblePanels,
+    notificationSettings,
   };
 }
 
@@ -112,6 +125,8 @@ export function useAppState(): UseAppStateResult {
       setState(loaded);
       setReady(true);
       await saveState(loaded);
+      if (cancelled) return;
+      void syncAlertsFromState(loaded);
     })();
     return () => {
       cancelled = true;
@@ -122,6 +137,7 @@ export function useAppState(): UseAppStateResult {
     const coerced = coerceState(next);
     setState(coerced);
     await saveState(coerced);
+    void syncAlertsFromState(coerced);
   }, []);
 
   const activeKid = state ? getActiveKid(state) : defaultKidState();
@@ -266,6 +282,20 @@ export function useAppState(): UseAppStateResult {
     [persist, state],
   );
 
+  const setNotificationEnabled = useCallback(
+    (key: keyof NotificationSettings, enabled: boolean) => {
+      if (!state) return;
+      void persist({
+        ...state,
+        notificationSettings: {
+          ...state.notificationSettings,
+          [key]: enabled,
+        },
+      });
+    },
+    [persist, state],
+  );
+
   const selectKid = useCallback(
     (id: string) => {
       if (!state) return;
@@ -330,6 +360,7 @@ export function useAppState(): UseAppStateResult {
     intervalDown,
     intervalUp,
     setPanelVisible,
+    setNotificationEnabled,
     selectKid,
     addKid,
     removeKid,
