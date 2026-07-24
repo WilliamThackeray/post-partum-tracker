@@ -1,4 +1,15 @@
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
+import { BUG_REPORT_FORM_URL, FEEDBACK_FORM_URL } from "../feedback";
 import { panelShadow } from "../shadow";
 import { colors, fonts, radius } from "../theme";
 import type { PanelId, VisiblePanels } from "../types";
@@ -31,6 +42,31 @@ const PANEL_OPTIONS: { id: PanelId; label: string; hint: string }[] = [
   },
 ];
 
+const HELP_OPTIONS: { label: string; hint: string; url: string }[] = [
+  {
+    label: "Report a bug",
+    hint: "Something broken or wrong",
+    url: BUG_REPORT_FORM_URL,
+  },
+  {
+    label: "Send feedback",
+    hint: "Ideas and suggestions",
+    url: FEEDBACK_FORM_URL,
+  },
+];
+
+async function openFormUrl(url: string) {
+  try {
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      throw new Error("cannot open");
+    }
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert("Couldn't open link", "Try again in a moment.");
+  }
+}
+
 type SettingsScreenProps = {
   visiblePanels: VisiblePanels;
   onBack: () => void;
@@ -54,7 +90,7 @@ export function SettingsScreen({
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
         <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>Choose what shows on the home screen.</Text>
+        <Text style={styles.subtitle}>Panels, bugs, and feedback.</Text>
       </View>
 
       <ScrollView
@@ -87,6 +123,35 @@ export function SettingsScreen({
                 ios_backgroundColor={colors.border}
               />
             </View>
+          ))}
+        </View>
+
+        <View style={[styles.panel, styles.helpPanel]}>
+          <Text style={styles.sectionHeading}>Help</Text>
+          {HELP_OPTIONS.map((option, index) => (
+            <Pressable
+              key={option.label}
+              accessibilityRole="link"
+              accessibilityLabel={option.label}
+              accessibilityHint="Opens in browser"
+              onPress={() => openFormUrl(option.url)}
+              style={({ pressed }) => [
+                styles.row,
+                index < HELP_OPTIONS.length - 1 && styles.rowBorder,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.rowText}>
+                <Text style={styles.rowLabel}>{option.label}</Text>
+                <Text style={styles.rowHint}>{option.hint}</Text>
+              </View>
+              <Ionicons
+                name="open-outline"
+                size={20}
+                color={colors.inkMuted}
+                accessibilityElementsHidden
+              />
+            </Pressable>
           ))}
         </View>
       </ScrollView>
@@ -140,6 +205,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
     ...panelShadow,
+  },
+  helpPanel: {
+    marginTop: 16,
   },
   sectionHeading: {
     fontFamily: fonts.bodySemiBold,
