@@ -155,10 +155,14 @@ function HomeScreen({
   );
 }
 
+type KidNameSheet =
+  | { mode: "add" }
+  | { mode: "edit"; id: string; name: string };
+
 function AppContent() {
   const [screen, setScreen] = useState<Screen>("home");
   const [kidsOpen, setKidsOpen] = useState(false);
-  const [addKidOpen, setAddKidOpen] = useState(false);
+  const [kidNameSheet, setKidNameSheet] = useState<KidNameSheet | null>(null);
   const app = useAppState();
 
   if (!app.ready) {
@@ -218,14 +222,29 @@ function AppContent() {
         onSelectKid={app.selectKid}
         onRequestAddKid={() => {
           setKidsOpen(false);
-          setAddKidOpen(true);
+          setKidNameSheet({ mode: "add" });
+        }}
+        onRequestEditKid={(kid) => {
+          setKidsOpen(false);
+          setKidNameSheet({ mode: "edit", id: kid.id, name: kid.name });
         }}
         onRemoveKid={app.removeKid}
       />
       <AddKidSheet
-        visible={addKidOpen}
-        onClose={() => setAddKidOpen(false)}
-        onAdd={app.addKid}
+        visible={kidNameSheet != null}
+        title={kidNameSheet?.mode === "edit" ? "Rename kid" : "Add kid"}
+        submitLabel={kidNameSheet?.mode === "edit" ? "Save name" : "Save kid"}
+        initialName={
+          kidNameSheet?.mode === "edit" ? kidNameSheet.name : ""
+        }
+        onClose={() => setKidNameSheet(null)}
+        onSubmit={(name) => {
+          if (kidNameSheet?.mode === "edit") {
+            app.renameKid(kidNameSheet.id, name);
+          } else {
+            app.addKid(name);
+          }
+        }}
       />
     </>
   );

@@ -14,23 +14,33 @@ import { colors, fonts, radius } from "../theme";
 
 type AddKidSheetProps = {
   visible: boolean;
+  title?: string;
+  submitLabel?: string;
+  initialName?: string;
   onClose: () => void;
-  onAdd: (name: string) => void;
+  onSubmit: (name: string) => void;
 };
 
-export function AddKidSheet({ visible, onClose, onAdd }: AddKidSheetProps) {
+export function AddKidSheet({
+  visible,
+  title = "Add kid",
+  submitLabel = "Save kid",
+  initialName = "",
+  onClose,
+  onSubmit,
+}: AddKidSheetProps) {
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
-  const canAdd = Boolean(name.trim());
+  const canSubmit = Boolean(name.trim());
 
   useEffect(() => {
     if (!visible) return;
-    setName("");
-  }, [visible]);
+    setName(initialName);
+  }, [visible, initialName]);
 
   const submit = () => {
-    if (!canAdd) return;
-    onAdd(name.trim());
+    if (!canSubmit) return;
+    onSubmit(name.trim());
     onClose();
   };
 
@@ -59,7 +69,7 @@ export function AddKidSheet({ visible, onClose, onAdd }: AddKidSheetProps) {
         >
           <View style={styles.handle} />
           <View style={styles.header}>
-            <Text style={styles.title}>Add kid</Text>
+            <Text style={styles.title}>{title}</Text>
             <Pressable
               accessibilityRole="button"
               onPress={onClose}
@@ -89,13 +99,13 @@ export function AddKidSheet({ visible, onClose, onAdd }: AddKidSheetProps) {
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.addBtn,
-              !canAdd && styles.addBtnDisabled,
-              pressed && canAdd && styles.pressed,
+              !canSubmit && styles.addBtnDisabled,
+              pressed && canSubmit && styles.pressed,
             ]}
             onPress={submit}
-            disabled={!canAdd}
+            disabled={!canSubmit}
           >
-            <Text style={styles.addBtnText}>Save kid</Text>
+            <Text style={styles.addBtnText}>{submitLabel}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

@@ -20,6 +20,7 @@ type KidsDrawerProps = {
   onClose: () => void;
   onSelectKid: (id: string) => void;
   onRequestAddKid: () => void;
+  onRequestEditKid: (kid: KidState) => void;
   onRemoveKid: (id: string) => void;
 };
 
@@ -30,6 +31,7 @@ export function KidsDrawer({
   onClose,
   onSelectKid,
   onRequestAddKid,
+  onRequestEditKid,
   onRemoveKid,
 }: KidsDrawerProps) {
   const insets = useSafeAreaInsets();
@@ -129,13 +131,29 @@ export function KidsDrawer({
                       />
                     ) : null}
                   </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Rename ${kid.name}`}
+                    onPress={() => onRequestEditKid(kid)}
+                    style={({ pressed }) => [
+                      styles.iconBtn,
+                      pressed && styles.pressed,
+                    ]}
+                    hitSlop={6}
+                  >
+                    <Ionicons
+                      name="pencil-outline"
+                      size={20}
+                      color={colors.inkMuted}
+                    />
+                  </Pressable>
                   {canDelete ? (
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`Delete ${kid.name}`}
                       onPress={() => confirmRemove(kid)}
                       style={({ pressed }) => [
-                        styles.deleteBtn,
+                        styles.iconBtn,
                         pressed && styles.pressed,
                       ]}
                       hitSlop={6}
@@ -255,7 +273,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     color: colors.accentDeep,
   },
-  deleteBtn: {
+  iconBtn: {
     width: 44,
     height: 52,
     alignItems: "center",

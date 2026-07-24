@@ -65,6 +65,7 @@ export type UseAppStateResult = {
   ) => void;
   selectKid: (id: string) => void;
   addKid: (name: string) => void;
+  renameKid: (id: string, name: string) => void;
   removeKid: (id: string) => void;
 };
 
@@ -320,6 +321,22 @@ export function useAppState(): UseAppStateResult {
     [persist, state],
   );
 
+  const renameKid = useCallback(
+    (id: string, name: string) => {
+      if (!state) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      if (!state.kids.some((k) => k.id === id)) return;
+      void persist({
+        ...state,
+        kids: state.kids.map((kid) =>
+          kid.id === id ? { ...kid, name: trimmed } : kid,
+        ),
+      });
+    },
+    [persist, state],
+  );
+
   const removeKid = useCallback(
     (id: string) => {
       if (!state) return;
@@ -363,6 +380,7 @@ export function useAppState(): UseAppStateResult {
     setNotificationEnabled,
     selectKid,
     addKid,
+    renameKid,
     removeKid,
   };
 }
