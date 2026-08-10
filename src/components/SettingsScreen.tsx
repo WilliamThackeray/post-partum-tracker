@@ -25,6 +25,11 @@ const PANEL_OPTIONS: { id: PanelId; label: string; hint: string }[] = [
     hint: "Start feeds, track sides, and see recent sessions.",
   },
   {
+    id: "bottle",
+    label: "Bottle",
+    hint: "Start bottle feeds and log ounces eaten.",
+  },
+  {
     id: "motherMedicine",
     label: "Mom's medicine",
     hint: "Dose reminders and medicine list for mom.",

@@ -28,7 +28,8 @@ export function IntervalSettings({
     <View style={styles.panel}>
       <Text style={styles.heading}>Feeding interval</Text>
       <Text style={styles.hint}>
-        How long between feeds. Next feed is based on when you press Start Feed.
+        How long between feeds. Next feed is based on when you press Start Feed
+        (breast or bottle).
       </Text>
       <View style={styles.control}>
         <Pressable

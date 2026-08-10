@@ -9,6 +9,7 @@ import type {
   PanelId,
   VisiblePanels,
 } from "./types";
+import { parseActiveBottleSession, parseBottleFeeds } from "./bottle";
 import { parseDiapers } from "./diaper";
 import { createId } from "./id";
 import { parseMedicines } from "./medicine";
@@ -23,6 +24,7 @@ export const DEFAULT_KID_NAME = "Baby";
 
 const PANEL_IDS: PanelId[] = [
   "feed",
+  "bottle",
   "motherMedicine",
   "babyMedicine",
   "diaper",
@@ -32,6 +34,7 @@ const PANEL_IDS: PanelId[] = [
 export function defaultVisiblePanels(): VisiblePanels {
   return {
     feed: true,
+    bottle: true,
     motherMedicine: true,
     babyMedicine: true,
     diaper: true,
@@ -62,6 +65,8 @@ export function defaultKidState(name = DEFAULT_KID_NAME): KidState {
     lastBreast: null,
     activeSession: null,
     feeds: [],
+    activeBottleSession: null,
+    bottleFeeds: [],
     scheduleStartedAt: null,
     feedIntervalHours: DEFAULT_FEED_INTERVAL_HOURS,
     babyMedicines: [],
@@ -240,12 +245,26 @@ function parseKidState(value: unknown): KidState | null {
       .slice(0, MAX_FEEDS);
   }
 
+  if (data.activeBottleSession) {
+    kid.activeBottleSession = parseActiveBottleSession(
+      data.activeBottleSession,
+    );
+  }
+
+  if (data.bottleFeeds !== undefined) {
+    kid.bottleFeeds = parseBottleFeeds(data.bottleFeeds);
+  }
+
   if (isIsoString(data.scheduleStartedAt)) {
     kid.scheduleStartedAt = data.scheduleStartedAt;
   } else if (kid.feeds[0]?.startedAt) {
     kid.scheduleStartedAt = kid.feeds[0].startedAt;
+  } else if (kid.bottleFeeds[0]?.startedAt) {
+    kid.scheduleStartedAt = kid.bottleFeeds[0].startedAt;
   } else if (kid.activeSession?.startedAt) {
     kid.scheduleStartedAt = kid.activeSession.startedAt;
+  } else if (kid.activeBottleSession?.startedAt) {
+    kid.scheduleStartedAt = kid.activeBottleSession.startedAt;
   }
 
   kid.feedIntervalHours = parseFeedIntervalHours(data.feedIntervalHours);
@@ -289,12 +308,26 @@ function kidFromLegacyFlat(data: Record<string, unknown>): KidState {
       .slice(0, MAX_FEEDS);
   }
 
+  if (data.activeBottleSession) {
+    kid.activeBottleSession = parseActiveBottleSession(
+      data.activeBottleSession,
+    );
+  }
+
+  if (data.bottleFeeds !== undefined) {
+    kid.bottleFeeds = parseBottleFeeds(data.bottleFeeds);
+  }
+
   if (isIsoString(data.scheduleStartedAt)) {
     kid.scheduleStartedAt = data.scheduleStartedAt;
   } else if (kid.feeds[0]?.startedAt) {
     kid.scheduleStartedAt = kid.feeds[0].startedAt;
+  } else if (kid.bottleFeeds[0]?.startedAt) {
+    kid.scheduleStartedAt = kid.bottleFeeds[0].startedAt;
   } else if (kid.activeSession?.startedAt) {
     kid.scheduleStartedAt = kid.activeSession.startedAt;
+  } else if (kid.activeBottleSession?.startedAt) {
+    kid.scheduleStartedAt = kid.activeBottleSession.startedAt;
   }
 
   kid.feedIntervalHours = parseFeedIntervalHours(data.feedIntervalHours);

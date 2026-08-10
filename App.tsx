@@ -20,6 +20,8 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { BottleLogsScreen } from "./src/components/BottleLogsScreen";
+import { BottlePanel } from "./src/components/BottlePanel";
 import { DiaperLogsScreen } from "./src/components/DiaperLogsScreen";
 import { DiaperPanel } from "./src/components/DiaperPanel";
 import { FeedLogsScreen } from "./src/components/FeedLogsScreen";
@@ -32,17 +34,19 @@ import { SettingsScreen } from "./src/components/SettingsScreen";
 import { useAppState, type UseAppStateResult } from "./src/hooks/useAppState";
 import { colors, fonts } from "./src/theme";
 
-type Screen = "home" | "feedLogs" | "diaperLogs" | "settings";
+type Screen = "home" | "feedLogs" | "bottleLogs" | "diaperLogs" | "settings";
 
 function HomeScreen({
   app,
   onSeeMoreFeeds,
+  onSeeMoreBottleFeeds,
   onSeeMoreDiapers,
   onOpenSettings,
   onOpenKids,
 }: {
   app: UseAppStateResult;
   onSeeMoreFeeds: () => void;
+  onSeeMoreBottleFeeds: () => void;
   onSeeMoreDiapers: () => void;
   onOpenSettings: () => void;
   onOpenKids: () => void;
@@ -54,6 +58,9 @@ function HomeScreen({
     toggleSession,
     toggleSide,
     deleteLoggedFeed,
+    startBottleFeed,
+    endBottleFeed,
+    deleteLoggedBottleFeed,
     takeMed,
     undoTakeMed,
     addMed,
@@ -110,6 +117,16 @@ function HomeScreen({
           onToggleSide={toggleSide}
           onDeleteFeed={deleteLoggedFeed}
           onSeeMoreFeeds={onSeeMoreFeeds}
+        />
+      ) : null}
+
+      {visiblePanels.bottle ? (
+        <BottlePanel
+          state={activeKid}
+          onStart={startBottleFeed}
+          onEnd={endBottleFeed}
+          onDeleteFeed={deleteLoggedBottleFeed}
+          onSeeMoreFeeds={onSeeMoreBottleFeeds}
         />
       ) : null}
 
@@ -183,6 +200,16 @@ function AppContent() {
     );
   }
 
+  if (screen === "bottleLogs") {
+    return (
+      <BottleLogsScreen
+        feeds={app.activeKid.bottleFeeds}
+        onBack={() => setScreen("home")}
+        onDeleteFeed={app.deleteLoggedBottleFeed}
+      />
+    );
+  }
+
   if (screen === "diaperLogs") {
     return (
       <DiaperLogsScreen
@@ -210,6 +237,7 @@ function AppContent() {
       <HomeScreen
         app={app}
         onSeeMoreFeeds={() => setScreen("feedLogs")}
+        onSeeMoreBottleFeeds={() => setScreen("bottleLogs")}
         onSeeMoreDiapers={() => setScreen("diaperLogs")}
         onOpenSettings={() => setScreen("settings")}
         onOpenKids={() => setKidsOpen(true)}

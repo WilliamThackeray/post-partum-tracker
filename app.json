@@ -36,6 +36,13 @@
           "color": "#1a3a32",
           "defaultChannel": "feed-alerts"
         }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.nest.postpartumtracker.widgets",
+          "groupIdentifier": "group.com.nest.postpartumtracker"
+        }
       ]
     ]
   }

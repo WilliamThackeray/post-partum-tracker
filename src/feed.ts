@@ -1,3 +1,4 @@
+import { scheduleAfterHistoryChange } from "./bottle";
 import { createId } from "./id";
 import {
   MAX_FEED_INTERVAL_HOURS,
@@ -114,15 +115,10 @@ export function deleteFeed(kid: KidState, id: string): KidState {
   const feeds = kid.feeds.filter((feed) => feed.id !== id);
   if (feeds.length === kid.feeds.length) return kid;
 
-  // Keep active session schedule; otherwise base next feed on newest remaining log.
-  const scheduleStartedAt = kid.activeSession
-    ? kid.scheduleStartedAt
-    : (feeds[0]?.startedAt ?? null);
-
+  const next = { ...kid, feeds };
   return {
-    ...kid,
-    feeds,
-    scheduleStartedAt,
+    ...next,
+    scheduleStartedAt: scheduleAfterHistoryChange(next),
     lastBreast:
       feeds.length === 0
         ? null

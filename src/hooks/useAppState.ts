@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+  deleteBottleFeed,
+  parseBottleFeeds,
+  startBottleSession,
+  stopBottleSession,
+} from "../bottle";
 import { deleteDiaper, logDiaper, parseDiapers } from "../diaper";
 import {
   deleteFeed,
@@ -21,6 +27,7 @@ import {
   undoTakeBabyMedicine,
   undoTakeMedicine,
 } from "../medicine";
+import { syncFeedingLiveActivity } from "../liveActivity/syncFeedingLiveActivity";
 import { syncAlertsFromState } from "../notifications";
 import {
   defaultKidState,
@@ -50,6 +57,9 @@ export type UseAppStateResult = {
   toggleSession: () => void;
   toggleSide: (side: BreastSide) => void;
   deleteLoggedFeed: (id: string) => void;
+  startBottleFeed: () => void;
+  endBottleFeed: (ounces: number) => void;
+  deleteLoggedBottleFeed: (id: string) => void;
   takeMed: (scope: MedicineScope, id: string) => void;
   undoTakeMed: (scope: MedicineScope, id: string) => void;
   addMed: (scope: MedicineScope, name: string, intervalHours: number) => void;
@@ -72,6 +82,10 @@ export type UseAppStateResult = {
 function coerceKid(kid: KidState): KidState {
   return {
     ...kid,
+    bottleFeeds: Array.isArray(kid.bottleFeeds)
+      ? kid.bottleFeeds
+      : parseBottleFeeds(kid.bottleFeeds),
+    activeBottleSession: kid.activeBottleSession ?? null,
     babyMedicines: parseMedicines(kid.babyMedicines),
     diapers: Array.isArray(kid.diapers) ? kid.diapers : parseDiapers(kid.diapers),
   };
@@ -128,6 +142,7 @@ export function useAppState(): UseAppStateResult {
       await saveState(loaded);
       if (cancelled) return;
       void syncAlertsFromState(loaded);
+      void syncFeedingLiveActivity(loaded);
     })();
     return () => {
       cancelled = true;
@@ -139,6 +154,7 @@ export function useAppState(): UseAppStateResult {
     setState(coerced);
     await saveState(coerced);
     void syncAlertsFromState(coerced);
+    void syncFeedingLiveActivity(coerced);
   }, []);
 
   const activeKid = state ? getActiveKid(state) : defaultKidState();
@@ -178,6 +194,29 @@ export function useAppState(): UseAppStateResult {
     (id: string) => {
       if (!state) return;
       void persist(updateActiveKid(state, (kid) => deleteFeed(kid, id)));
+    },
+    [persist, state],
+  );
+
+  const startBottleFeed = useCallback(() => {
+    if (!state) return;
+    void persist(updateActiveKid(state, startBottleSession));
+  }, [persist, state]);
+
+  const endBottleFeed = useCallback(
+    (ounces: number) => {
+      if (!state) return;
+      void persist(
+        updateActiveKid(state, (kid) => stopBottleSession(kid, ounces)),
+      );
+    },
+    [persist, state],
+  );
+
+  const deleteLoggedBottleFeed = useCallback(
+    (id: string) => {
+      if (!state) return;
+      void persist(updateActiveKid(state, (kid) => deleteBottleFeed(kid, id)));
     },
     [persist, state],
   );
@@ -368,6 +407,9 @@ export function useAppState(): UseAppStateResult {
     toggleSession,
     toggleSide,
     deleteLoggedFeed,
+    startBottleFeed,
+    endBottleFeed,
+    deleteLoggedBottleFeed,
     takeMed,
     undoTakeMed,
     addMed,

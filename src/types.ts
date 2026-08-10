@@ -27,6 +27,18 @@ export type ActiveSession = {
   activeSegment: ActiveSegment | null;
 };
 
+export type BottleFeed = {
+  id: string;
+  startedAt: string;
+  endedAt: string;
+  /** Amount consumed, in ounces (quarter-oz steps). */
+  ounces: number;
+};
+
+export type ActiveBottleSession = {
+  startedAt: string;
+};
+
 export type Medicine = {
   id: string;
   name: string;
@@ -50,6 +62,7 @@ export type DiaperChange = {
 
 export type PanelId =
   | "feed"
+  | "bottle"
   | "motherMedicine"
   | "babyMedicine"
   | "diaper"
@@ -69,6 +82,8 @@ export type KidState = {
   lastBreast: BreastSide | null;
   activeSession: ActiveSession | null;
   feeds: FeedSession[];
+  activeBottleSession: ActiveBottleSession | null;
+  bottleFeeds: BottleFeed[];
   /** When the current feeding cycle started (for last/next schedule). */
   scheduleStartedAt: string | null;
   feedIntervalHours: number;
