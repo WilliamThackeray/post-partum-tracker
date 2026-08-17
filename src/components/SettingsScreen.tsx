@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import {
   Alert,
   Linking,
@@ -17,6 +18,7 @@ import type {
   PanelId,
   VisiblePanels,
 } from "../types";
+import { AddToHomeScreenModal } from "./AddToHomeScreenModal";
 
 const PANEL_OPTIONS: { id: PanelId; label: string; hint: string }[] = [
   {
@@ -68,13 +70,25 @@ const NOTIFICATION_OPTIONS: {
   },
 ];
 
-const HELP_OPTIONS: { label: string; hint: string; url: string }[] = [
+const HELP_OPTIONS: {
+  id: "addToHome" | "bug" | "feedback";
+  label: string;
+  hint: string;
+  url?: string;
+}[] = [
   {
+    id: "addToHome",
+    label: "Add to Home Screen",
+    hint: "Add the app to your home screen for quick access.",
+  },
+  {
+    id: "bug",
     label: "Report a bug",
     hint: "Something broken or wrong",
     url: BUG_REPORT_FORM_URL,
   },
   {
+    id: "feedback",
     label: "Send feedback",
     hint: "Ideas and suggestions",
     url: FEEDBACK_FORM_URL,
@@ -111,6 +125,8 @@ export function SettingsScreen({
   onSetPanelVisible,
   onSetNotificationEnabled,
 }: SettingsScreenProps) {
+  const [homeScreenOpen, setHomeScreenOpen] = useState(false);
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -193,33 +209,51 @@ export function SettingsScreen({
 
         <View style={[styles.panel, styles.sectionPanel]}>
           <Text style={styles.sectionHeading}>Help</Text>
-          {HELP_OPTIONS.map((option, index) => (
-            <Pressable
-              key={option.label}
-              accessibilityRole="link"
-              accessibilityLabel={option.label}
-              accessibilityHint="Opens in browser"
-              onPress={() => openFormUrl(option.url)}
-              style={({ pressed }) => [
-                styles.row,
-                index < HELP_OPTIONS.length - 1 && styles.rowBorder,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>{option.label}</Text>
-                <Text style={styles.rowHint}>{option.hint}</Text>
-              </View>
-              <Ionicons
-                name="open-outline"
-                size={20}
-                color={colors.inkMuted}
-                accessibilityElementsHidden
-              />
-            </Pressable>
-          ))}
+          {HELP_OPTIONS.map((option, index) => {
+            const isLink = Boolean(option.url);
+            return (
+              <Pressable
+                key={option.id}
+                accessibilityRole={isLink ? "link" : "button"}
+                accessibilityLabel={option.label}
+                accessibilityHint={
+                  isLink ? "Opens in browser" : "Shows install steps"
+                }
+                onPress={() => {
+                  if (option.id === "addToHome") {
+                    setHomeScreenOpen(true);
+                    return;
+                  }
+                  if (option.url) {
+                    void openFormUrl(option.url);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.row,
+                  index < HELP_OPTIONS.length - 1 && styles.rowBorder,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>{option.label}</Text>
+                  <Text style={styles.rowHint}>{option.hint}</Text>
+                </View>
+                <Ionicons
+                  name={isLink ? "open-outline" : "phone-portrait-outline"}
+                  size={20}
+                  color={colors.inkMuted}
+                  accessibilityElementsHidden
+                />
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
+
+      <AddToHomeScreenModal
+        visible={homeScreenOpen}
+        onClose={() => setHomeScreenOpen(false)}
+      />
     </View>
   );
 }
