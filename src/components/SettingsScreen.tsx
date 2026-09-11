@@ -71,7 +71,7 @@ const NOTIFICATION_OPTIONS: {
 ];
 
 const HELP_OPTIONS: {
-  id: "addToHome" | "bug" | "feedback";
+  id: "addToHome" | "bug" | "feedback" | "donate";
   label: string;
   hint: string;
   url?: string;
@@ -92,6 +92,12 @@ const HELP_OPTIONS: {
     label: "Send feedback",
     hint: "Ideas and suggestions",
     url: FEEDBACK_FORM_URL,
+  },
+  {
+    id: "donate",
+    label: "Support this app",
+    hint: "Buy me a coffee",
+    url: "https://buymeacoffee.com/williamthackeray",
   },
 ];
 
