@@ -1,0 +1,389 @@
+import { Fraunces_600SemiBold } from "@expo-google-fonts/fraunces";
+import {
+  SourceSans3_400Regular,
+  SourceSans3_500Medium,
+  SourceSans3_600SemiBold,
+} from "@expo-google-fonts/source-sans-3";
+import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
+import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { BottleLogsScreen } from "./src/components/BottleLogsScreen";
+import { BottlePanel } from "./src/components/BottlePanel";
+import { DiaperLogsScreen } from "./src/components/DiaperLogsScreen";
+import { DiaperPanel } from "./src/components/DiaperPanel";
+import { FeedLogsScreen } from "./src/components/FeedLogsScreen";
+import { FeedPanel } from "./src/components/FeedPanel";
+import { AddKidSheet } from "./src/components/AddKidSheet";
+import { IntervalSettings } from "./src/components/IntervalSettings";
+import { KidsDrawer } from "./src/components/KidsDrawer";
+import { MedicinePanel } from "./src/components/MedicinePanel";
+import { SettingsScreen } from "./src/components/SettingsScreen";
+import { useAppState, type UseAppStateResult } from "./src/hooks/useAppState";
+import { colors, fonts } from "./src/theme";
+
+type Screen = "home" | "feedLogs" | "bottleLogs" | "diaperLogs" | "settings";
+
+function HomeScreen({
+  app,
+  onSeeMoreFeeds,
+  onSeeMoreBottleFeeds,
+  onSeeMoreDiapers,
+  onOpenSettings,
+  onOpenKids,
+}: {
+  app: UseAppStateResult;
+  onSeeMoreFeeds: () => void;
+  onSeeMoreBottleFeeds: () => void;
+  onSeeMoreDiapers: () => void;
+  onOpenSettings: () => void;
+  onOpenKids: () => void;
+}) {
+  const {
+    state,
+    activeKid,
+    timerLabel,
+    toggleSession,
+    toggleSide,
+    deleteLoggedFeed,
+    startBottleFeed,
+    endBottleFeed,
+    deleteLoggedBottleFeed,
+    takeMed,
+    undoTakeMed,
+    addMed,
+    removeMed,
+    logDiaperChange,
+    deleteLoggedDiaper,
+    intervalDown,
+    intervalUp,
+  } = app;
+  const { visiblePanels } = state;
+
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.brandRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Kids menu"
+          onPress={onOpenKids}
+          style={({ pressed }) => [
+            styles.menuBtn,
+            pressed && styles.chromeBtnPressed,
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons name="menu" size={24} color={colors.brand} />
+        </Pressable>
+        <View style={styles.brand}>
+          <Text style={styles.brandTitle}>Nest</Text>
+          <Text style={styles.brandKid}>{activeKid.name}</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          onPress={onOpenSettings}
+          style={({ pressed }) => [
+            styles.settingsBtn,
+            pressed && styles.chromeBtnPressed,
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons name="settings-outline" size={22} color={colors.brand} />
+        </Pressable>
+      </View>
+
+      {visiblePanels.feed ? (
+        <FeedPanel
+          state={activeKid}
+          timerLabel={timerLabel}
+          onToggleSession={toggleSession}
+          onToggleSide={toggleSide}
+          onDeleteFeed={deleteLoggedFeed}
+          onSeeMoreFeeds={onSeeMoreFeeds}
+        />
+      ) : null}
+
+      {visiblePanels.bottle ? (
+        <BottlePanel
+          state={activeKid}
+          onStart={startBottleFeed}
+          onEnd={endBottleFeed}
+          onDeleteFeed={deleteLoggedBottleFeed}
+          onSeeMoreFeeds={onSeeMoreBottleFeeds}
+        />
+      ) : null}
+
+      {visiblePanels.motherMedicine ? (
+        <MedicinePanel
+          title="Mom's medicine"
+          medicines={state.motherMedicines}
+          onTake={(id) => takeMed("mother", id)}
+          onUndoTake={(id) => undoTakeMed("mother", id)}
+          onAdd={(name, hours) => addMed("mother", name, hours)}
+          onRemove={(id) => removeMed("mother", id)}
+        />
+      ) : null}
+
+      {visiblePanels.babyMedicine ? (
+        <MedicinePanel
+          title={`${activeKid.name}'s medicine`}
+          medicines={activeKid.babyMedicines}
+          onTake={(id) => takeMed("baby", id)}
+          onUndoTake={(id) => undoTakeMed("baby", id)}
+          onAdd={(name, hours) => addMed("baby", name, hours)}
+          onRemove={(id) => removeMed("baby", id)}
+        />
+      ) : null}
+
+      {visiblePanels.diaper ? (
+        <DiaperPanel
+          diapers={activeKid.diapers}
+          onLog={logDiaperChange}
+          onDelete={deleteLoggedDiaper}
+          onSeeMoreDiapers={onSeeMoreDiapers}
+        />
+      ) : null}
+
+      {visiblePanels.interval ? (
+        <IntervalSettings
+          intervalHours={activeKid.feedIntervalHours}
+          onDown={intervalDown}
+          onUp={intervalUp}
+        />
+      ) : null}
+    </ScrollView>
+  );
+}
+
+type KidNameSheet =
+  | { mode: "add" }
+  | { mode: "edit"; id: string; name: string };
+
+function AppContent() {
+  const [screen, setScreen] = useState<Screen>("home");
+  const [kidsOpen, setKidsOpen] = useState(false);
+  const [kidNameSheet, setKidNameSheet] = useState<KidNameSheet | null>(null);
+  const app = useAppState();
+
+  if (!app.ready) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.brand} size="large" />
+      </View>
+    );
+  }
+
+  if (screen === "feedLogs") {
+    return (
+      <FeedLogsScreen
+        feeds={app.activeKid.feeds}
+        onBack={() => setScreen("home")}
+        onDeleteFeed={app.deleteLoggedFeed}
+      />
+    );
+  }
+
+  if (screen === "bottleLogs") {
+    return (
+      <BottleLogsScreen
+        feeds={app.activeKid.bottleFeeds}
+        onBack={() => setScreen("home")}
+        onDeleteFeed={app.deleteLoggedBottleFeed}
+      />
+    );
+  }
+
+  if (screen === "diaperLogs") {
+    return (
+      <DiaperLogsScreen
+        diapers={app.activeKid.diapers}
+        onBack={() => setScreen("home")}
+        onDeleteDiaper={app.deleteLoggedDiaper}
+      />
+    );
+  }
+
+  if (screen === "settings") {
+    return (
+      <SettingsScreen
+        visiblePanels={app.state.visiblePanels}
+        notificationSettings={app.state.notificationSettings}
+        onBack={() => setScreen("home")}
+        onSetPanelVisible={app.setPanelVisible}
+        onSetNotificationEnabled={app.setNotificationEnabled}
+      />
+    );
+  }
+
+  return (
+    <>
+      <HomeScreen
+        app={app}
+        onSeeMoreFeeds={() => setScreen("feedLogs")}
+        onSeeMoreBottleFeeds={() => setScreen("bottleLogs")}
+        onSeeMoreDiapers={() => setScreen("diaperLogs")}
+        onOpenSettings={() => setScreen("settings")}
+        onOpenKids={() => setKidsOpen(true)}
+      />
+      <KidsDrawer
+        visible={kidsOpen}
+        kids={app.state.kids}
+        activeKidId={app.state.activeKidId}
+        onClose={() => setKidsOpen(false)}
+        onSelectKid={app.selectKid}
+        onRequestAddKid={() => {
+          setKidsOpen(false);
+          setKidNameSheet({ mode: "add" });
+        }}
+        onRequestEditKid={(kid) => {
+          setKidsOpen(false);
+          setKidNameSheet({ mode: "edit", id: kid.id, name: kid.name });
+        }}
+        onRemoveKid={app.removeKid}
+      />
+      <AddKidSheet
+        visible={kidNameSheet != null}
+        title={kidNameSheet?.mode === "edit" ? "Rename kid" : "Add kid"}
+        submitLabel={kidNameSheet?.mode === "edit" ? "Save name" : "Save kid"}
+        initialName={
+          kidNameSheet?.mode === "edit" ? kidNameSheet.name : ""
+        }
+        onClose={() => setKidNameSheet(null)}
+        onSubmit={(name) => {
+          if (kidNameSheet?.mode === "edit") {
+            app.renameKid(kidNameSheet.id, name);
+          } else {
+            app.addKid(name);
+          }
+        }}
+      />
+    </>
+  );
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    Fraunces_600SemiBold,
+    SourceSans3_400Regular,
+    SourceSans3_500Medium,
+    SourceSans3_600SemiBold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={[styles.root, styles.loading]}>
+        <ActivityIndicator color={colors.brand} size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <LinearGradient
+          colors={[colors.bgTop, colors.bgMid, colors.bgBottom]}
+          locations={[0, 0.28, 0.72]}
+          style={styles.root}
+        >
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+            <View style={styles.shell}>
+              <AppContent />
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  safe: {
+    flex: 1,
+  },
+  shell: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 440,
+    alignSelf: "center",
+  },
+  loading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bgTop,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 17.6,
+    paddingTop: 6.4,
+    paddingBottom: 28,
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingBottom: 22.4,
+  },
+  brand: {
+    flex: 1,
+    paddingHorizontal: 2.4,
+  },
+  brandTitle: {
+    fontFamily: fonts.display,
+    fontSize: Platform.OS === "web" ? 48 : 44,
+    color: colors.brand,
+    letterSpacing: -1.2,
+    lineHeight: Platform.OS === "web" ? 52 : 48,
+  },
+  brandKid: {
+    marginTop: 4,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 16,
+    color: colors.brandMuted,
+  },
+  menuBtn: {
+    marginTop: 8,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(242, 247, 244, 0.12)",
+  },
+  settingsBtn: {
+    marginTop: 8,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(242, 247, 244, 0.12)",
+  },
+  chromeBtnPressed: {
+    opacity: 0.7,
+  },
+});

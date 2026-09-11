@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Nest",
+    "slug": "nest-postpartum-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a3a32"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nest.postpartumtracker"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2f6f5e",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.nest.postpartumtracker",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#1a3a32",
+          "defaultChannel": "feed-alerts"
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.nest.postpartumtracker.widgets",
+          "groupIdentifier": "group.com.nest.postpartumtracker"
+        }
+      ]
+    ]
+  }
+}
